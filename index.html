@@ -1,212 +1,117 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jadwal Kuliah Interaktif</title>
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <title>Jadwal Kegiatan Interaktif</title>
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-
+    <!-- Icons (Font Awesome) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="/src/styles.css">
+    <!-- Netlify Identity Widget -->
     <script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
-
-    <link rel="stylesheet" href="styles.css">
-
-    <style>
-        .admin-section {
-            background-color: var(--color-secondary);
-            padding: 2rem;
-            margin-top: 2rem;
-            border-radius: var(--radius-lg);
-            border: 1px solid var(--color-border);
-        }
-        .admin-section h2 {
-            color: var(--color-primary);
-            margin-bottom: 1.5rem;
-            text-align: center;
-        }
-        .add-schedule-form h3 {
-            margin-bottom: 1rem;
-            font-weight: 600;
-        }
-        .form-group {
-            margin-bottom: 1.2rem;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-            color: var(--color-text-muted);
-        }
-        .form-group input[type="text"],
-        .form-group input[type="date"] {
-            width: 100%;
-            padding: 0.8rem 1rem;
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius-md);
-            background-color: var(--color-background);
-            color: var(--color-text);
-            font-size: 0.95rem;
-            font-family: var(--font-primary);
-            transition: var(--transition);
-        }
-        .form-group input[type="text"]:focus,
-        .form-group input[type="date"]:focus {
-            outline: none;
-            border-color: var(--color-primary);
-            box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.2);
-        }
-        .btn-submit {
-            background-color: var(--color-primary);
-            color: white;
-            padding: 0.8rem 1.5rem;
-            border: none;
-            border-radius: var(--radius-md);
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: 500;
-            transition: var(--transition);
-            display: inline-block; /* Agar tidak full width */
-        }
-        .btn-submit:hover:not(:disabled) {
-            background-color: var(--color-primary-dark);
-            transform: translateY(-2px);
-        }
-        .btn-submit:disabled {
-            background-color: var(--color-text-muted);
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
-        .form-status {
-            margin-top: 1rem;
-            font-weight: 500;
-            padding: 0.5rem;
-            border-radius: var(--radius-sm);
-            display: none; /* Sembunyikan secara default */
-        }
-        .form-status.success {
-            color: #155724; /* Warna teks sukses */
-            background-color: #d4edda; /* Background sukses */
-            border: 1px solid #c3e6cb;
-        }
-        .form-status.error {
-            color: #721c24; /* Warna teks error */
-            background-color: #f8d7da; /* Background error */
-            border: 1px solid #f5c6cb;
-        }
-        /* Styling untuk tombol admin di kartu */
-        .admin-actions {
-            margin-top: 1rem;
-            padding-top: 0.8rem;
-            border-top: 1px solid var(--color-secondary);
-            display: flex;
-            gap: 0.5rem;
-            justify-content: flex-end;
-        }
-        .admin-actions button {
-            padding: 0.3rem 0.8rem;
-            border-radius: var(--radius-sm);
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: var(--transition);
-            border: 1px solid transparent;
-        }
-        .admin-actions .btn-edit {
-            background-color: #ffc107; /* Kuning */
-            color: #333;
-        }
-        .admin-actions .btn-edit:hover {
-            background-color: #e0a800;
-            border-color: #d39e00;
-        }
-        .admin-actions .btn-delete {
-            background-color: #dc3545; /* Merah */
-            color: white;
-        }
-         .admin-actions .btn-delete:hover {
-            background-color: #c82333;
-            border-color: #bd2130;
-        }
-
-    </style>
 </head>
 <body>
-    <header class="header">
-        <div class="header-top container">
-            <div class="brand">
-                <i class="fas fa-calendar-alt brand-icon"></i>
-                <h1 class="brand-title">Jadwal Kuliah</h1>
-            </div>
-
-            <div class="search-filter">
-                <div class="search-container">
-                    <i class="fas fa-search search-icon"></i>
-                    <input type="text" id="searchInput" class="search-input" placeholder="Cari mata kuliah, peserta...">
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-top container">
+                <div class="brand">
+                    <i class="fas fa-calendar-alt brand-icon"></i>
+                    <h1 class="brand-title">Jadwal Kegiatan</h1>
                 </div>
-                <select id="institutionFilter" class="institution-filter">
-                    <option value="all">Semua Institusi</option>
-                    </select>
+                <!-- Tombol Ganti Tema -->
+                <button id="themeToggle" class="theme-toggle" aria-label="Toggle Light/Dark Theme">
+                    <span class="theme-icon"></span>
+                </button>
             </div>
+            <!-- Filter & Search -->
+            <div class="header-filters container">
+                <div class="search-filter">
+                    <div class="search-container">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="searchInput" class="search-input" placeholder="Cari institusi, mapel, peserta...">
+                    </div>
+                    <select id="institutionFilter" class="institution-filter">
+                        <option value="all">Semua Institusi</option>
+                        <!-- Opsi institusi akan ditambahkan oleh JavaScript -->
+                    </select>
+                </div>
+            </div>
+        </header>
 
-            <button id="themeToggle" class="theme-toggle" aria-label="Toggle Light/Dark Theme">
-                <span class="theme-icon"></span> </button>
-        </div>
-    </header>
+        <!-- Konten Utama -->
+        <main class="main-content container">
 
-    <main class="main-content container">
-        <div class="loading" id="loading" style="display: none;"> <div class="spinner"></div>
-            <p>Memuat Jadwal...</p>
-        </div>
+            <!-- Bagian Admin (Login & Form Tambah) -->
+            <section id="adminSection" class="admin-section" style="display: none;"> <!-- Awalnya disembunyikan -->
+                <h2>Area Admin</h2>
+                <!-- Container untuk Netlify Identity Widget -->
+                <div id="netlifyIdentityWidget"></div>
 
-        <section id="scheduleGrid" class="schedule-grid" aria-live="polite">
+                <!-- Form Tambah Jadwal (di dalam admin section) -->
+                <form id="addScheduleForm" class="add-schedule-form card" style="display: none;"> <!-- Awalnya disembunyikan -->
+                     <h3>Tambah Jadwal Baru</h3>
+                    <div class="form-group">
+                        <label for="addInstitusi">Institusi:</label>
+                        <input type="text" id="addInstitusi" name="institusi" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="addMataPelajaran">Mata Pelajaran:</label>
+                        <input type="text" id="addMataPelajaran" name="mata_pelajaran" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="addTanggal">Tanggal:</label>
+                        <input type="date" id="addTanggal" name="tanggal" required pattern="\d{4}-\d{2}-\d{2}">
+                    </div>
+                    <div class="form-group">
+                        <label for="addPeserta">Peserta (pisahkan dengan koma):</label>
+                        <input type="text" id="addPeserta" name="peserta" required placeholder="Contoh: Budi, Ani, Candra">
+                        <small>Pisahkan setiap nama peserta dengan koma.</small>
+                    </div>
+                    <button type="submit" id="addScheduleSubmitBtn" class="button primary-button">Tambah Jadwal</button>
+                    <p id="addFormStatus" class="form-status" aria-live="polite" style="display: none;"></p>
+                </form>
             </section>
 
-        <div class="empty-state" id="emptyState" style="display: none;">
-            </div>
+            <!-- Tampilan Jadwal -->
+            <section id="scheduleDisplay" class="schedule-display">
+                <h2>Jadwal Mendatang</h2>
+                <!-- Indikator Loading -->
+                <div class="loading-indicator" id="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Memuat Jadwal...</p>
+                </div>
+                <!-- Grid Jadwal -->
+                <div id="scheduleGrid" class="schedule-grid" aria-live="polite">
+                    <!-- Kartu jadwal akan dimasukkan di sini oleh JavaScript -->
+                </div>
+                <!-- Status Kosong -->
+                <div class="empty-state" id="emptyState" style="display: none;">
+                    <!-- Konten status kosong akan dimasukkan oleh JavaScript -->
+                </div>
+            </section>
 
-        <section class="admin-section container" id="adminSection" style="display: none;">
-            <h2>Admin Panel</h2>
-
-            <div id="netlifyIdentityWidget">
-                </div>
-
-            <form id="addScheduleForm" class="add-schedule-form" style="margin-top: 2rem;">
-                <h3>Tambah Jadwal Baru</h3>
-                <div class="form-group">
-                    <label for="addInstitusi">Institusi:</label>
-                    <input type="text" id="addInstitusi" name="institusi" required>
-                </div>
-                <div class="form-group">
-                    <label for="addMataPelajaran">Mata Pelajaran:</label>
-                    <input type="text" id="addMataPelajaran" name="mata_pelajaran" required>
-                </div>
-                <div class="form-group">
-                    <label for="addTanggal">Tanggal (YYYY-MM-DD):</label>
-                    <input type="date" id="addTanggal" name="tanggal" required>
-                </div>
-                <div class="form-group">
-                    <label for="addPeserta">Peserta (pisahkan nama dengan koma):</label>
-                    <input type="text" id="addPeserta" name="peserta" placeholder="Contoh: Budi, Ani, Caca" required>
-                </div>
-                <button type="submit" class="btn-submit" id="addScheduleSubmitBtn">Tambah Jadwal</button>
-                <p id="addFormStatus" class="form-status"></p>
-            </form>
-        </section>
         </main>
 
-    <div class="modal" id="genericModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" style="display: none;">
-        <div class="modal-overlay"></div>
-        <div class="modal-content">
-            <button class="close-modal" aria-label="Close modal">&times;</button>
-            <h3 id="modalTitle" class="modal-title">Detail Jadwal</h3>
-            <div class="modal-body" id="modalBody">
+        <!-- Modal Detail -->
+        <div class="modal" id="genericModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" style="display: none;">
+            <div class="modal-overlay"></div>
+            <div class="modal-content">
+                <button class="close-modal" aria-label="Close modal">&times;</button>
+                <h3 id="modalTitle" class="modal-title">Detail Jadwal</h3>
+                <div class="modal-body" id="modalBody">
+                    <!-- Konten modal akan dimasukkan di sini oleh JavaScript -->
                 </div>
+            </div>
         </div>
-    </div>
 
-    <script type="module" src="/main.js"></script>
+    </div> <!-- Akhir div #app -->
+
+    <!-- Main JavaScript -->
+    <script type="module" src="/src/main.js"></script>
 </body>
 </html>

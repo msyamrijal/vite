@@ -1,5 +1,4 @@
 // Lokasi file: netlify/functions/updateSchedule.js
-
 import { createClient } from '@supabase/supabase-js';
 
 // Ambil Konfigurasi Supabase dari Environment Variables
@@ -7,7 +6,7 @@ const supabaseUrl = process.env.SUPABASE_URL;
 // Gunakan Service Role Key untuk bypass RLS setelah user diautentikasi
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !supabaseServiceKey) {
+if (!supabaseUrl || !supabaseServiceKey) { // Cek saat build/deploy
     console.error("FATAL: Supabase URL or Service Role Key environment variable is missing.");
 }
 
@@ -16,10 +15,18 @@ exports.handler = async (event, context) => {
     // 1. Validasi Konfigurasi Server & Metode HTTP
     // -----------------------------------------------------
     if (!supabaseUrl || !supabaseServiceKey) {
-        return { statusCode: 500, body: JSON.stringify({ error: 'Server configuration error.' }) };
+        console.error("Supabase URL or Service Role Key missing inside handler.");
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ error: 'Server configuration error.' }),
+            headers: { 'Content-Type': 'application/json' }
+        };
     }
     if (event.httpMethod !== 'PUT') {
-        return { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed: Only PUT requests are accepted.' }), headers: { 'Allow': 'PUT' } };
+        return {
+            statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed: Only PUT requests are accepted.' }),
+            headers: { 'Allow': 'PUT', 'Content-Type': 'application/json' }
+        };
     }
 
     // 2. Cek Autentikasi & Autorisasi Pengguna (Netlify Identity)
@@ -27,6 +34,10 @@ exports.handler = async (event, context) => {
     const { identity, user } = context.clientContext;
     if (!user) {
         return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorized: You must be logged in to update a schedule.' }) };
+        return {
+            statusCode: 401, body: JSON.stringify({ error: 'Unauthorized: You must be logged in to update a schedule.' }),
+            headers: { 'Content-Type': 'application/json' }
+        };
     }
     // (Opsional) Cek role admin jika perlu
     // const roles = user.app_metadata.roles || [];
@@ -43,27 +54,27 @@ exports.handler = async (event, context) => {
         if (!event.body) throw new Error("Request body is empty.");
         const requestBody = JSON.parse(event.body);
 
-        // Ambil ID dari body (atau bisa juga dari query param jika diubah)
+        // Ambil ID dari body request
         scheduleId = requestBody.id;
-        if (!scheduleId || typeof scheduleId !== 'number') { // Asumsi ID adalah number
+        if (!scheduleId || (typeof scheduleId !== 'number' && typeof scheduleId !== 'string')) { // ID bisa string atau number
              throw new Error("Missing or invalid 'id' in request body.");
         }
 
         // Ambil data yang akan diupdate
-        updatedData = requestBody.data;
+        updatedData = requestBody.data; // Asumsi frontend mengirim { id: ..., data: { ... } }
         if (!updatedData || typeof updatedData !== 'object') throw new Error("Missing or invalid 'data' object in request body.");
 
         // Validasi field yang diupdate (mirip create, tapi opsional tergantung field)
         if (!updatedData.institusi || typeof updatedData.institusi !== 'string' || updatedData.institusi.trim() === '') throw new Error("Missing or invalid 'institusi'.");
         if (!updatedData.mata_pelajaran || typeof updatedData.mata_pelajaran !== 'string' || updatedData.mata_pelajaran.trim() === '') throw new Error("Missing or invalid 'mata_pelajaran'.");
         if (!updatedData.tanggal || typeof updatedData.tanggal !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(updatedData.tanggal)) throw new Error("Missing or invalid 'tanggal' (must be YYYY-MM-DD string).");
-        if (!updatedData.peserta || !Array.isArray(updatedData.peserta)) throw new Error("Missing or invalid 'peserta' (must be an array of strings).");
+        if (!updatedData.peserta || !Array.isArray(updatedData.peserta) || updatedData.peserta.length === 0) throw new Error("Missing, invalid, or empty 'peserta' (must be a non-empty array of strings).");
 
         console.log(`Received valid data for updating schedule ID ${scheduleId}:`, updatedData);
 
     } catch (error) {
         console.error("Error parsing or validating request body for update:", error.message);
-        return { statusCode: 400, body: JSON.stringify({ error: `Bad Request: ${error.message}` }) };
+        return { statusCode: 400, body: JSON.stringify({ error: `Bad Request: ${error.message}` }), headers: { 'Content-Type': 'application/json' } };
     }
 
     // 4. Inisialisasi Supabase Client (Menggunakan Service Role Key)
@@ -86,7 +97,7 @@ exports.handler = async (event, context) => {
                 institusi: updatedData.institusi.trim(),
                 mata_pelajaran: updatedData.mata_pelajaran.trim(),
                 tanggal: updatedData.tanggal,
-                peserta: updatedData.peserta.map(p => typeof p === 'string' ? p.trim() : '').filter(p => p),
+                peserta: updatedData.peserta.map(p => String(p).trim()).filter(p => p),
                 // Kolom 'id' dan 'created_at' biasanya tidak diupdate
             })
             .eq('id', scheduleId) // Kondisi WHERE id = scheduleId
@@ -97,16 +108,16 @@ exports.handler = async (event, context) => {
         if (error) {
             console.error(`Supabase update error for table '${tableName}', ID ${scheduleId}:`, error);
             // Cek jika error karena data tidak ditemukan (misal, ID salah)
-            if (error.code === 'PGRST116') { // Kode error PostgREST untuk 0 rows updated/deleted
-                 return { statusCode: 404, body: JSON.stringify({ error: `Schedule with ID ${scheduleId} not found.` }) };
+            if (error.code === 'PGRST116') { // Kode error PostgREST untuk 0 rows affected
+                 return { statusCode: 404, body: JSON.stringify({ error: `Schedule with ID ${scheduleId} not found.` }), headers: { 'Content-Type': 'application/json' } };
             }
             throw new Error(`Database error: ${error.message}`);
         }
 
         // Cek jika data benar-benar terupdate (data tidak null)
         if (!data) {
-             console.warn(`No schedule found with ID ${scheduleId} to update.`);
-             return { statusCode: 404, body: JSON.stringify({ error: `Schedule with ID ${scheduleId} not found.` }) };
+             console.warn(`No schedule found with ID ${scheduleId} to update (or no changes made).`);
+             return { statusCode: 404, body: JSON.stringify({ error: `Schedule with ID ${scheduleId} not found or no changes detected.` }), headers: { 'Content-Type': 'application/json' } };
         }
 
 
