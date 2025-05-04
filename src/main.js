@@ -73,7 +73,12 @@ const fetchData = async () => {
         const data = await response.json();
         const today = new Date(); today.setHours(0, 0, 0, 0);
         allSchedules = data
-            .map(item => ({ ...item, TanggalDate: new Date(item.tanggal + 'T00:00:00Z') }))
+            .filter(item => item && item.tanggal)
+            .map(item => ({
+                ...item,
+                peserta: Array.isArray(item.peserta) ? item.peserta : [],
+                TanggalDate: new Date(item.tanggal + 'T00:00:00Z')
+             }))
             .filter(item => item.TanggalDate >= today)
             .sort((a, b) => a.TanggalDate - b.TanggalDate);
         initFilters();
@@ -142,16 +147,21 @@ const renderSchedules = (data) => {
 const createScheduleCard = (item) => {
     const card = document.createElement('article');
     card.className = 'schedule-card';
+    let pesertaHtml = '<span class="participant-tag na-tag">N/A</span>';
+    if (Array.isArray(item.peserta) && item.peserta.length > 0) {
+        pesertaHtml = item.peserta.map(peserta => {
+            const pesertaText = typeof peserta === 'string' ? peserta : 'Invalid Data';
+            return `<span class="participant-tag clickable" data-entity="Peserta" title="Lihat semua jadwal ${pesertaText}">${pesertaText}</span>`;
+        }).join('');
+    }
     card.innerHTML = `
         <div class="card-header">
-            <h3 class="course-title clickable" data-entity="Mata_Pelajaran" title="Lihat semua jadwal ${item.mata_pelajaran}">${item.mata_pelajaran}</h3>
+            <h3 class="course-title clickable" data-entity="Mata_Pelajaran" title="Lihat semua jadwal ${item.mata_pelajaran}">${item.mata_pelajaran || 'N/A'}</h3>
             <span class="date-display clickable" data-entity="Tanggal" title="Lihat semua jadwal pada ${formatDate(item.tanggal)}">${formatDate(item.tanggal)}</span>
         </div>
-        <div class="institute clickable" data-entity="Institusi" title="Lihat semua jadwal dari ${item.institusi}">${item.institusi}</div>
+        <div class="institute clickable" data-entity="Institusi" title="Lihat semua jadwal dari ${item.institusi}">${item.institusi || 'N/A'}</div>
         <div class="participants">
-            ${Array.isArray(item.peserta) ? item.peserta.map(peserta => `
-                <span class="participant-tag clickable" data-entity="Peserta" title="Lihat semua jadwal ${peserta}">${peserta}</span>
-            `).join('') : '<span class="participant-tag">N/A</span>'}
+            ${pesertaHtml}
         </div>
         ${currentUser ? `
             <div class="admin-actions">
@@ -181,16 +191,22 @@ const generateModalContent = (data) => {
     if (!data || data.length === 0) {
         return '<p class="no-data">Tidak ada data jadwal terkait yang ditemukan.</p>';
     }
-    return data.map(item => `
-        <div class="modal-item">
-            <div class="card-header"><h4 class="course-title">${item.mata_pelajaran}</h4></div>
-             <div class="modal-meta">
-                <span class="institute">${item.institusi}</span>
-                <span class="date-display">${formatDate(item.tanggal)}</span>
+    return data.map(item => {
+        let pesertaHtmlModal = '<span class="participant-tag na-tag">N/A</span>';
+        if (Array.isArray(item.peserta) && item.peserta.length > 0) {
+             pesertaHtmlModal = item.peserta.map(p => `<span class="participant-tag">${typeof p === 'string' ? p : 'Invalid'}</span>`).join('');
+        }
+        return `
+            <div class="modal-item">
+                <div class="card-header"><h4 class="course-title">${item.mata_pelajaran || 'N/A'}</h4></div>
+                 <div class="modal-meta">
+                    <span class="institute">${item.institusi || 'N/A'}</span>
+                    <span class="date-display">${formatDate(item.tanggal)}</span>
+                </div>
+                <div class="participants">${pesertaHtmlModal}</div>
             </div>
-            <div class="participants">${Array.isArray(item.peserta) ? item.peserta.map(p => `<span class="participant-tag">${p}</span>`).join('') : 'N/A'}</div>
-        </div>
-    `).join('');
+        `;
+        }).join('');
 };
 
 const handleEntityClick = (element) => {
