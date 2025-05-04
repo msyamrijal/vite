@@ -1,14 +1,17 @@
+# netlify.toml
+
 [build]
+  # Perintah build Vite (otomatis tahu tentang src)
   command = "npm run build"
+  # Direktori output hasil build
   publish = "dist"
 
 [functions]
-  # Directory containing function source code relative to the base directory
+  # Direktori kode functions
   directory = "netlify/functions/"
-  # Node.js runtime version. Make sure it's supported by Netlify and googleapis
-  node_bundler = "esbuild" # Recommended for faster builds
-  included_files = ["src/data/**"] # Example if you had data files to include
+  node_bundler = "esbuild"
 
+# (Opsional) Redirect untuk API
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
