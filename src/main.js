@@ -1,149 +1,137 @@
+// Import CSS (Vite way)
 import './styles.css';
 
 // ======================
-// DOM Elements
+// KONFIGURASI & SELEKTOR DOM
 // ======================
+// Base URL untuk Netlify Functions
+const API_BASE_URL = '/api'; // Asumsi menggunakan redirect Netlify /api/* -> /.netlify/functions/*
+// const API_BASE_URL = '/.netlify/functions'; // Gunakan ini jika TIDAK pakai redirect
+
+// URL Endpoint Functions
+const GET_SCHEDULES_URL = `${API_BASE_URL}/getSchedules`;
+const CREATE_SCHEDULE_URL = `${API_BASE_URL}/createSchedule`;
+// Definisikan URL untuk Update & Delete nanti
+// const UPDATE_SCHEDULE_URL = `${API_BASE_URL}/updateSchedule`;
+// const DELETE_SCHEDULE_URL = `${API_BASE_URL}/deleteSchedule`;
+
+// Elemen DOM Utama
 const elements = {
-    scheduleContainer: document.getElementById('schedule-container'),
-    searchInput: document.getElementById('search-input'),
-    institutionFilter: document.getElementById('institution-filter'),
-    loadingIndicator: document.getElementById('loading-indicator'),
-    modal: document.getElementById('details-modal'),
-    modalTitle: document.getElementById('modal-title'),
-    modalBody: document.getElementById('modal-body'),
-    closeModalBtn: document.querySelector('.close-button'),
-    noResultsMessage: document.getElementById('no-results'),
-    // Elemen Form Tambah Jadwal
-    addScheduleForm: document.getElementById('add-schedule-form'),
-    newInstitusiInput: document.getElementById('new-institusi'),
-    newMataPelajaranInput: document.getElementById('new-mata_pelajaran'),
-    newTanggalInput: document.getElementById('new-tanggal'),
-    newPesertaInput: document.getElementById('new-peserta'),
-    addScheduleFeedback: document.getElementById('add-schedule-feedback'),
-    addScheduleSection: document.getElementById('add-schedule-section'), // Section form
-    loginPrompt: document.getElementById('login-prompt'), // Pesan untuk login
-    submitScheduleBtn: document.getElementById('submit-schedule-btn'),
-    themeToggle: document.getElementById('themeToggle'), // Tombol ganti tema
+    searchInput: document.getElementById('searchInput'),
+    institutionFilter: document.getElementById('institutionFilter'),
+    scheduleGrid: document.getElementById('scheduleGrid'),
+    loading: document.getElementById('loading'),
+    emptyState: document.getElementById('emptyState'),
+    modal: document.getElementById('genericModal'),
+    modalTitle: document.getElementById('modalTitle'),
+    modalBody: document.getElementById('modalBody'),
+    closeModalBtn: document.querySelector('.close-modal'),
+    modalOverlay: document.querySelector('.modal-overlay'),
+    themeToggleBtn: document.getElementById('themeToggle')
 };
 
-// ======================
-// State
-// ======================
-let allSchedules = []; // Holds all fetched and processed schedule data
-let isLoading = false;
-let currentUser = null; // Menyimpan info user yang login
-
-// ======================
-// Utility Functions
-// ======================
-const formatDate = (dateString) => {
-    if (!dateString) return 'Tanggal tidak valid';
-    try {
-        // Coba parsing dengan asumsi YYYY-MM-DD atau format ISO
-        const date = new Date(dateString + 'T00:00:00'); // Tambah T00:00:00 untuk hindari masalah timezone saat parsing
-        if (isNaN(date.getTime())) {
-             // Jika gagal, coba parsing langsung (mungkin sudah ISO lengkap)
-             const directDate = new Date(dateString);
-             if (isNaN(directDate.getTime())) {
-                 throw new Error('Invalid date format');
-             }
-             return directDate.toLocaleDateString('id-ID', {
-                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-            });
-        }
-        return date.toLocaleDateString('id-ID', {
-            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-        });
-    } catch (error) {
-        console.error("Error formatting date:", dateString, error);
-        return 'Tanggal tidak valid';
-    }
+// Elemen DOM untuk Fitur Admin
+const adminElements = {
+    adminSection: document.getElementById('adminSection'), // Container utama admin
+    netlifyIdentityWidgetContainer: document.getElementById('netlifyIdentityWidget'), // Tempat widget login
+    addScheduleForm: document.getElementById('addScheduleForm'), // Form tambah
+    addInstitusiInput: document.getElementById('addInstitusi'),
+    addMataPelajaranInput: document.getElementById('addMataPelajaran'),
+    addTanggalInput: document.getElementById('addTanggal'),
+    addPesertaInput: document.getElementById('addPeserta'),
+    addFormSubmitButton: document.getElementById('addScheduleSubmitBtn'), // Tombol submit form
+    addFormStatus: document.getElementById('addFormStatus'), // Paragraf status form
 };
 
-const setLoading = (loading) => {
-    isLoading = loading;
-    elements.loadingIndicator.style.display = loading ? 'flex' : 'none'; // Use flex for centering
-};
+// Variabel Global
+let allSchedules = []; // Cache untuk semua data jadwal
+let currentUser = null; // Menyimpan informasi pengguna yang sedang login
 
 // ======================
-// Theme Handling
+// MANAJEMEN TEMA (Tidak berubah)
 // ======================
-const applyTheme = (theme) => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme); // Simpan preferensi tema
+const initTheme = () => {
+    const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateThemeIcon(savedTheme);
 };
 
 const toggleTheme = () => {
-    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-    applyTheme(newTheme);
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeIcon(newTheme);
 };
 
-const loadTheme = () => {
-    const savedTheme = localStorage.getItem('theme') || 'light'; // Default ke light
-    applyTheme(savedTheme);
+const updateThemeIcon = (theme) => {
+    // Implementasi ikon tema (sesuaikan dengan CSS Anda)
+    const themeIcon = elements.themeToggleBtn?.querySelector('.theme-icon');
+    // Anda mungkin mengubah kelas atau style di sini berdasarkan tema
 };
 
-
 // ======================
-// Data Fetching
+// MANAJEMEN DATA (Fetch dari Supabase via Netlify Function)
 // ======================
-const fetchSchedules = async () => {
-    setLoading(true);
-    elements.noResultsMessage.style.display = 'none'; // Hide no results message initially
-    elements.scheduleContainer.innerHTML = ''; // Clear previous results during load
+const fetchData = async () => {
+    showLoading();
+    hideEmptyState();
     try {
-        // Use relative path for API call, Netlify rewrite handles it
-        const response = await fetch('/api/getSchedules');
+        console.log(`Fetching data from ${GET_SCHEDULES_URL}`);
+        const response = await fetch(GET_SCHEDULES_URL);
+
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            let errorMsg = `HTTP error! status: ${response.status}`;
+            try {
+                const errorData = await response.json();
+                errorMsg = errorData.error || errorData.message || errorMsg;
+            } catch (e) { /* Abaikan jika response bukan JSON */ }
+            throw new Error(errorMsg);
         }
+
         const data = await response.json();
+        console.log("Data received:", data);
 
+        // Proses data: tambahkan TanggalDate dan filter jadwal lampau
         const today = new Date();
-        today.setHours(0, 0, 0, 0); // Set time to beginning of the day for comparison
+        today.setHours(0, 0, 0, 0); // Set ke awal hari ini
 
-        // Process and filter data immediately after fetching
         allSchedules = data
-            .filter(item => {
-                // Basic validation: Ensure essential fields exist and date is valid
-                // Use lowercase property names and check if peserta is an array
-                const itemDate = new Date(item.tanggal + 'T00:00:00'); // Parse date consistently
-                return item.tanggal && item.institusi && item.mata_pelajaran && item.peserta && Array.isArray(item.peserta) && !isNaN(itemDate.getTime());
-            })
-            .map(item => ({ ...item, TanggalDate: new Date(item.tanggal + 'T00:00:00') })) // Pre-convert date for sorting/filtering
-            .filter(item => item.TanggalDate >= today) // Filter out past dates using the pre-converted date
-            .sort((a, b) => a.TanggalDate - b.TanggalDate); // Sort by date ascending
+            .map(item => ({
+                ...item,
+                // Konversi tanggal YYYY-MM-DD ke objek Date
+                TanggalDate: new Date(item.tanggal + 'T00:00:00Z') // Tambah Z untuk UTC atau sesuaikan timezone jika perlu
+            }))
+            .filter(item => item.TanggalDate >= today) // Hanya tampilkan jadwal hari ini atau mendatang
+            .sort((a, b) => a.TanggalDate - b.TanggalDate); // Urutkan berdasarkan tanggal
 
-        initFilters(); // Initialize filters only after data is loaded
-        updateAuthUI(); // Update UI based on auth state after data load (in case user is already logged in)
-        displaySchedules(); // Display initial data
+        initFilters(); // Inisialisasi filter dropdown
+        filterSchedules(); // Render data awal yang sudah difilter & disortir
 
     } catch (error) {
-        console.error("Gagal mengambil jadwal:", error);
-        elements.scheduleContainer.innerHTML = '<p class="error-message">Tidak dapat memuat jadwal. Silakan coba lagi nanti.</p>';
-        elements.noResultsMessage.style.display = 'none'; // Ensure no results isn't shown on fetch error
+        console.error('Fetch Error:', error);
+        showError(`Gagal memuat data jadwal: ${error.message}`);
+        allSchedules = []; // Kosongkan data jika error
+        renderSchedules([]); // Render tampilan kosong
     } finally {
-        setLoading(false);
+        hideLoading();
     }
 };
 
 // ======================
-// Filtering and Searching
+// SISTEM FILTER
 // ======================
 const initFilters = () => {
-    // Use a Set for unique institutions and sort them alphabetically
-    // Use lowercase property name 'institusi'
+    if (!elements.institutionFilter) return; // Pastikan elemen ada
+
     const institutions = [...new Set(allSchedules.map(item => item.institusi))].sort((a, b) => a.localeCompare(b));
     const filterSelect = elements.institutionFilter;
 
-    // Clear existing options (except the default "Semua Institusi")
-    const currentValue = filterSelect.value; // Save current selection
-    while (filterSelect.options.length > 1) {
-        filterSelect.remove(1);
-    }
+    // Simpan value terpilih saat ini (jika ada)
+    const currentFilterValue = filterSelect.value;
 
-    // Populate filter dropdown
+    filterSelect.length = 1; // Hapus opsi lama (kecuali "Semua Institusi")
+
     institutions.forEach(inst => {
         const option = document.createElement('option');
         option.value = inst;
@@ -151,84 +139,117 @@ const initFilters = () => {
         filterSelect.appendChild(option);
     });
 
-    // Restore previous selection if it still exists
-    if (institutions.includes(currentValue)) {
-        filterSelect.value = currentValue;
+    // Set kembali value yang terpilih sebelumnya (jika masih ada di list baru)
+    if (institutions.includes(currentFilterValue)) {
+        filterSelect.value = currentFilterValue;
+    }
+
+
+    // Pasang event listener hanya sekali
+    if (!filterSelect.dataset.listenerAttached) {
+        elements.searchInput?.addEventListener('input', debounce(filterSchedules, 300));
+        filterSelect.addEventListener('change', filterSchedules);
+        filterSelect.dataset.listenerAttached = 'true';
     }
 };
 
-const filterAndSearchSchedules = () => {
-    const searchTerm = elements.searchInput.value.toLowerCase().trim();
-    const selectedInstitution = elements.institutionFilter.value;
+const filterSchedules = () => {
+    // Fungsi ini dipanggil saat search/filter berubah atau data di-refresh
+    const searchTerm = elements.searchInput?.value.toLowerCase().trim() || '';
+    const selectedInstitution = elements.institutionFilter?.value || 'all';
 
     const filtered = allSchedules.filter(item => {
-        // Combine relevant fields into a single string for searching
-        // Use lowercase property names and ensure peserta is an array
+        const pesertaText = Array.isArray(item.peserta) ? item.peserta.join(' ') : '';
         const searchableText = [
             item.institusi,
             item.mata_pelajaran,
-            Array.isArray(item.peserta) ? item.peserta.join(' ') : '' // Ensure peserta is an array
-            // Optionally add formatted date if needed for search
+            pesertaText
         ].join(' ').toLowerCase();
 
         const matchesSearch = searchTerm === '' || searchableText.includes(searchTerm);
-        // Use lowercase property name 'institusi' for filtering
         const matchesInstitution = selectedInstitution === 'all' || item.institusi === selectedInstitution;
 
         return matchesSearch && matchesInstitution;
     });
 
-    displaySchedules(filtered);
+    renderSchedules(filtered); // Render hasil filter
 };
 
 // ======================
-// UI Rendering
+// RENDERING JADWAL
 // ======================
-const displaySchedules = (schedulesToDisplay = allSchedules) => {
-    elements.scheduleContainer.innerHTML = ''; // Clear previous results
+const renderSchedules = (data) => {
+    if (!elements.scheduleGrid) return;
+    elements.scheduleGrid.innerHTML = ''; // Kosongkan grid
 
-    if (schedulesToDisplay.length === 0 && !isLoading) {
-        elements.noResultsMessage.style.display = 'block'; // Show no results message
-    } else {
-        elements.noResultsMessage.style.display = 'none'; // Hide no results message
-        schedulesToDisplay.forEach(item => {
-            const card = createScheduleCard(item);
-            elements.scheduleContainer.appendChild(card);
-        });
+    if (data.length === 0) {
+        // Jika tidak ada hasil filter (bukan saat loading awal)
+        if (!elements.loading || elements.loading.style.display === 'none') {
+             showEmptyState("Tidak ada jadwal yang cocok dengan filter Anda.");
+        }
+        return;
     }
+
+    hideEmptyState(); // Sembunyikan pesan kosong jika ada data
+
+    const fragment = document.createDocumentFragment();
+    data.forEach(item => {
+        const card = createScheduleCard(item);
+        fragment.appendChild(card);
+    });
+    elements.scheduleGrid.appendChild(fragment);
 };
 
 const createScheduleCard = (item) => {
-    const card = document.createElement('div');
+    const card = document.createElement('article');
     card.className = 'schedule-card';
-    // Use lowercase property names here and in data-entity attributes
-    // Ensure data-value for date is the original string for accurate filtering in modal
+    // Gunakan nama field dari Supabase
     card.innerHTML = `
         <div class="card-header">
-            <h3 class="course-title clickable" data-entity="mata_pelajaran" data-value="${item.mata_pelajaran}">${item.mata_pelajaran}</h3>
-            <span class="date-display clickable" data-entity="tanggal" data-value="${item.tanggal}">${formatDate(item.tanggal)}</span>
+            <h3 class="course-title clickable" data-entity="Mata_Pelajaran" title="Lihat semua jadwal ${item.mata_pelajaran}">${item.mata_pelajaran}</h3>
+            <span class="date-display clickable" data-entity="Tanggal" title="Lihat semua jadwal pada ${formatDate(item.tanggal)}">${formatDate(item.tanggal)}</span>
         </div>
-        <div class="institute clickable" data-entity="institusi" data-value="${item.institusi}">${item.institusi}</div>
+        <div class="institute clickable" data-entity="Institusi" title="Lihat semua jadwal dari ${item.institusi}">${item.institusi}</div>
         <div class="participants">
-            ${Array.isArray(item.peserta) && item.peserta.length > 0 ? item.peserta.map(peserta => `
-                <span class="participant-tag clickable" data-entity="peserta" data-value="${peserta}">${peserta}</span>
-            `).join('') : '<span class="no-participants">Peserta tidak tersedia</span>'}
+            ${Array.isArray(item.peserta) ? item.peserta.map(peserta => `
+                <span class="participant-tag clickable" data-entity="Peserta" title="Lihat semua jadwal ${peserta}">${peserta}</span>
+            `).join('') : '<span class="participant-tag">N/A</span>'}
         </div>
+        ${currentUser ? `
+            <div class="admin-actions">
+                <button class="btn-edit" data-id="${item.id}" title="Edit Jadwal Ini">Edit</button>
+                <button class="btn-delete" data-id="${item.id}" title="Hapus Jadwal Ini">Hapus</button>
+            </div>
+        ` : ''}
     `;
+    // Tambahkan event listener untuk tombol edit/delete di attachDynamicListeners
     return card;
 };
 
+
 // ======================
-// Modal Logic
+// MODAL DETAIL
 // ======================
-const createModalContent = (data, titlePrefix) => {
-    elements.modalTitle.textContent = `${titlePrefix} (${data.length} Jadwal)`;
-    if (data.length === 0) {
-        elements.modalBody.innerHTML = '<p>Tidak ada jadwal yang cocok ditemukan.</p>';
-        return;
+const showGenericModal = (title, data) => {
+    if (!elements.modal) return;
+    elements.modalTitle.textContent = title;
+    elements.modalBody.innerHTML = generateModalContent(data);
+    elements.modal.style.display = 'block';
+    document.body.style.overflow = 'hidden'; // Cegah scroll background
+};
+
+const hideModal = () => {
+    if (!elements.modal) return;
+    elements.modal.style.display = 'none';
+    document.body.style.overflow = ''; // Kembalikan scroll background
+};
+
+const generateModalContent = (data) => {
+    if (!data || data.length === 0) {
+        return '<p class="no-data">Tidak ada data jadwal terkait yang ditemukan.</p>';
     }
-    // Use lowercase property names
-    elements.modalBody.innerHTML = data.map(item => `
+    // Tampilkan detail jadwal di modal
+    return data.map(item => `
         <div class="modal-item">
             <div class="card-header">
                 <h4 class="course-title">${item.mata_pelajaran}</h4>
@@ -238,199 +259,388 @@ const createModalContent = (data, titlePrefix) => {
                 <span class="date-display">${formatDate(item.tanggal)}</span>
             </div>
             <div class="participants">
-                ${Array.isArray(item.peserta) && item.peserta.length > 0 ? item.peserta.map(p => `<span class="participant-tag">${p}</span>`).join('') : '<span class="no-participants">Peserta tidak tersedia</span>'}
+                ${Array.isArray(item.peserta) ? item.peserta.map(p => `<span class="participant-tag">${p}</span>`).join('') : 'N/A'}
             </div>
         </div>
     `).join('');
 };
 
-const openModal = () => elements.modal.style.display = 'flex';
-const closeModal = () => elements.modal.style.display = 'none';
-
-const handleEntityClick = (event) => {
-    const target = event.target.closest('.clickable');
-    if (!target) return;
-
-    const entityType = target.dataset.entity; // Should be lowercase (e.g., 'mata_pelajaran', 'tanggal', 'institusi', 'peserta')
-    const value = target.dataset.value; // The original value (e.g., date string 'YYYY-MM-DD')
-    const filterProperty = entityType; // Direct mapping now works
-
-    if (!entityType || value === undefined || value === null) return;
-
-    let filteredData;
+// ======================
+// EVENT HANDLER KLIK ENTITAS
+// ======================
+const handleEntityClick = (element) => {
+    const entityType = element.dataset.entity;
+    const value = element.textContent.trim(); // Ambil teks konten
+    let filterProperty = entityType;
     let modalTitlePrefix = '';
 
-    // Prepare data based on clicked entity (using lowercase entityType)
-    if (entityType === 'peserta') {
+    // Mapping nama properti jika perlu
+    if (entityType === 'Mata_Pelajaran') filterProperty = 'mata_pelajaran';
+    if (entityType === 'Institusi') filterProperty = 'institusi';
+
+    let filteredData;
+    if (entityType === 'Peserta') {
         filteredData = allSchedules.filter(item => Array.isArray(item.peserta) && item.peserta.includes(value));
         modalTitlePrefix = `Jadwal untuk ${value}`;
-    } else if (entityType === 'tanggal') {
-         // Filter by the original date string to find matches
-         filteredData = allSchedules.filter(item => item.tanggal === value);
-         modalTitlePrefix = `Jadwal pada ${formatDate(value)}`; // Format the title nicely
-    } else { // mata_pelajaran or institusi
+    } else if (entityType === 'Tanggal') {
+        // Filter berdasarkan objek Date untuk akurasi
+        const clickedDate = new Date(value + 'T00:00:00Z'); // Asumsi value adalah YYYY-MM-DD
+         if (!isNaN(clickedDate.getTime())) {
+             filteredData = allSchedules.filter(item =>
+                 item.TanggalDate.getFullYear() === clickedDate.getFullYear() &&
+                 item.TanggalDate.getMonth() === clickedDate.getMonth() &&
+                 item.TanggalDate.getDate() === clickedDate.getDate()
+             );
+         } else {
+            filteredData = []; // Tanggal tidak valid
+         }
+         modalTitlePrefix = `Jadwal pada ${formatDate(value)}`; // Tampilkan tanggal diformat
+    } else { // Mata_Pelajaran or Institusi
         filteredData = allSchedules.filter(item => item[filterProperty] === value);
         modalTitlePrefix = `Jadwal ${value}`;
     }
 
-    // Sort modal results by date as well
-    filteredData.sort((a, b) => a.TanggalDate - b.TanggalDate);
+    // Filter lagi jadwal lampau (sudah dilakukan di fetchData, tapi bisa juga di sini)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const futureFilteredData = filteredData.filter(item => item.TanggalDate >= today);
 
-    createModalContent(filteredData, modalTitlePrefix);
-    openModal();
+
+    showGenericModal(modalTitlePrefix, futureFilteredData);
 };
 
 // ======================
-// Authentication Logic (Netlify Identity)
+// FUNGSI ADMIN: TAMBAH JADWAL
 // ======================
-const updateAuthUI = () => {
-    currentUser = netlifyIdentity.currentUser(); // Get current user status
+const handleAddScheduleSubmit = async (event) => {
+    event.preventDefault(); // Cegah reload halaman bawaan form
+    console.log("Add schedule form submitted");
 
-    if (currentUser) {
-        // User logged in
-        elements.loginPrompt.style.display = 'none';
-        elements.addScheduleForm.style.display = 'block'; // Tampilkan form
-        // console.log("User logged in:", currentUser.email);
-    } else {
-        // User logged out
-        elements.loginPrompt.style.display = 'block'; // Tampilkan pesan login
-        elements.addScheduleForm.style.display = 'none'; // Sembunyikan form
-        // console.log("User logged out");
+    // Pastikan tombol submit ada dan dalam keadaan tidak disable
+    const submitButton = adminElements.addFormSubmitButton;
+    if (!submitButton || submitButton.disabled) return;
+
+    // 1. Dapatkan Token JWT Pengguna
+    const user = netlifyIdentity.currentUser();
+    if (!user) {
+        showAddFormStatus("Error: Anda harus login untuk menambah jadwal.", true);
+        return;
     }
-};
-
-// ======================
-// Create Schedule Logic
-// ======================
-const handleCreateScheduleSubmit = async (event) => {
-    event.preventDefault(); // Mencegah submit form standar
-
-    elements.addScheduleFeedback.textContent = ''; // Bersihkan pesan feedback sebelumnya
-    elements.submitScheduleBtn.disabled = true; // Nonaktifkan tombol selama proses
-    elements.addScheduleFeedback.textContent = 'Menyimpan jadwal...';
-    elements.addScheduleFeedback.className = 'feedback-message info'; // Gaya pesan info
-    elements.addScheduleFeedback.style.display = 'block'; // Make sure feedback is visible
-
-    // --- Autentikasi Check ---
-    if (!currentUser) {
-        elements.addScheduleFeedback.textContent = 'Anda harus login untuk menambahkan jadwal.';
-        elements.addScheduleFeedback.className = 'feedback-message error';
-        elements.submitScheduleBtn.disabled = false;
+    const token = user.token?.access_token;
+    if (!token) {
+        showAddFormStatus("Error: Gagal mendapatkan token autentikasi.", true);
         return;
     }
 
-    // Ambil data dari form
-    const institusi = elements.newInstitusiInput.value.trim();
-    const mata_pelajaran = elements.newMataPelajaranInput.value.trim();
-    const tanggal = elements.newTanggalInput.value; // Format YYYY-MM-DD dari input type="date"
-    const pesertaText = elements.newPesertaInput.value.trim();
+    // 2. Ambil dan Validasi Data dari Form
+    const institusi = adminElements.addInstitusiInput?.value.trim();
+    const mata_pelajaran = adminElements.addMataPelajaranInput?.value.trim();
+    const tanggal = adminElements.addTanggalInput?.value; // Format YYYY-MM-DD
+    const pesertaInput = adminElements.addPesertaInput?.value.trim();
 
-    // Validasi sederhana di frontend (opsional, karena validasi utama di backend)
-    if (!institusi || !mata_pelajaran || !tanggal || !pesertaText) {
-        elements.addScheduleFeedback.textContent = 'Semua field wajib diisi.';
-        elements.addScheduleFeedback.className = 'feedback-message error';
-        elements.submitScheduleBtn.disabled = false;
+    if (!institusi || !mata_pelajaran || !tanggal || !pesertaInput) {
+        showAddFormStatus("Error: Semua field wajib diisi.", true);
+        return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(tanggal)) {
+         showAddFormStatus("Error: Format tanggal tidak valid (YYYY-MM-DD).", true);
+        return;
+    }
+    // Validasi tanggal tidak boleh di masa lalu
+    const inputDate = new Date(tanggal + 'T00:00:00Z');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (inputDate < today) {
+        showAddFormStatus("Error: Tanggal tidak boleh di masa lalu.", true);
         return;
     }
 
-    // Ubah string peserta menjadi array, trim setiap nama
-    const peserta = pesertaText.split(',').map(p => p.trim()).filter(p => p); // Filter elemen kosong
+
+    // Proses input peserta menjadi array string yang bersih
+    const peserta = pesertaInput.split(',')
+                           .map(p => p.trim())
+                           .filter(p => p); // Hapus string kosong
 
     if (peserta.length === 0) {
-         elements.addScheduleFeedback.textContent = 'Masukkan setidaknya satu nama peserta yang valid.';
-         elements.addScheduleFeedback.className = 'feedback-message error';
-         elements.submitScheduleBtn.disabled = false;
-         return;
+        showAddFormStatus("Error: Field peserta tidak boleh kosong (setelah diproses).", true);
+        return;
     }
 
+    // 3. Buat Objek Data untuk dikirim ke API
     const newScheduleData = {
         institusi,
         mata_pelajaran,
         tanggal,
-        peserta,
+        peserta
     };
 
+    // 4. Kirim ke API Backend (Netlify Function)
+    setFormSubmitting(true); // Disable tombol & tampilkan loading
     try {
-        const response = await fetch('/api/createSchedule', {
+        console.log("Sending data to API:", newScheduleData);
+        const response = await fetch(CREATE_SCHEDULE_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                // Sertakan token JWT dari user yang login
-                'Authorization': `Bearer ${currentUser?.token?.access_token}`
+                'Authorization': `Bearer ${token}` // Sertakan token JWT
             },
-            body: JSON.stringify(newScheduleData),
+            body: JSON.stringify(newScheduleData)
         });
 
-        const responseData = await response.json(); // Coba baca response JSON selalu
+        const responseData = await response.json(); // Coba baca response body
 
         if (!response.ok) {
-            // Gunakan pesan error dari backend jika ada, jika tidak gunakan status text
-            throw new Error(responseData.error || responseData.message || `Gagal menyimpan: ${response.statusText}`);
+            // Gunakan pesan error dari backend jika ada
+            const errorMsg = responseData.error || responseData.message || `Gagal menyimpan: Status ${response.status}`;
+            throw new Error(errorMsg);
         }
 
-        // Sukses!
-        elements.addScheduleFeedback.textContent = 'Jadwal berhasil ditambahkan!';
-        elements.addScheduleFeedback.className = 'feedback-message success';
-        elements.addScheduleForm.reset(); // Kosongkan form
-        await fetchSchedules(); // Ambil ulang data jadwal untuk menampilkan yang baru
+        console.log("Schedule created successfully:", responseData);
+
+        // 5. Handle Sukses
+        showAddFormStatus("Jadwal berhasil ditambahkan!", false);
+        adminElements.addScheduleForm?.reset(); // Kosongkan form
+        await fetchData(); // Ambil ulang data terbaru untuk refresh tampilan
 
         // Sembunyikan pesan sukses setelah beberapa detik
-        setTimeout(() => {
-            elements.addScheduleFeedback.style.display = 'none';
-        }, 3000);
-
+        setTimeout(() => showAddFormStatus("", false), 4000);
 
     } catch (error) {
         console.error("Error creating schedule:", error);
-        elements.addScheduleFeedback.textContent = `Error: ${error.message}`;
-        elements.addScheduleFeedback.className = 'feedback-message error';
+        // 6. Handle Error
+        showAddFormStatus(`Error: ${error.message}`, true);
     } finally {
-        elements.submitScheduleBtn.disabled = false; // Aktifkan kembali tombol
+        setFormSubmitting(false); // Enable tombol lagi
     }
 };
 
+// Helper untuk disable/enable form saat submit
+const setFormSubmitting = (isSubmitting) => {
+    if (adminElements.addFormSubmitButton) {
+        adminElements.addFormSubmitButton.disabled = isSubmitting;
+        adminElements.addFormSubmitButton.textContent = isSubmitting ? 'Menyimpan...' : 'Tambah Jadwal';
+    }
+    showAddFormStatus(isSubmitting ? "Menyimpan jadwal..." : "", false);
+};
+
+
+// Helper untuk menampilkan status form tambah
+const showAddFormStatus = (message, isError) => {
+    if (adminElements.addFormStatus) {
+        adminElements.addFormStatus.textContent = message;
+        adminElements.addFormStatus.className = `form-status ${isError ? 'error' : 'success'}`; // Ganti kelas untuk styling
+        adminElements.addFormStatus.style.display = message ? 'block' : 'none';
+    }
+};
+
+
 // ======================
-// Event Listeners
+// AUTENTIKASI (Netlify Identity)
 // ======================
-const addEventListeners = () => {
-    elements.searchInput.addEventListener('input', filterAndSearchSchedules);
-    elements.institutionFilter.addEventListener('change', filterAndSearchSchedules);
-    elements.closeModalBtn.addEventListener('click', closeModal);
-    elements.modal.addEventListener('click', (event) => { // Close modal on overlay click
-        if (event.target === elements.modal) {
-            closeModal();
+const setupAdminFeatures = (user) => {
+    currentUser = user; // Simpan info user global
+    const isAdminSectionVisible = !!user; // Tampilkan jika user login
+
+    console.log(isAdminSectionVisible ? `User logged in: ${user.email}` : "User logged out");
+
+    if (adminElements.adminSection) {
+        adminElements.adminSection.style.display = isAdminSectionVisible ? 'block' : 'none';
+    } else {
+         console.warn("Admin section element not found.");
+    }
+
+    // Render ulang jadwal untuk menampilkan/menyembunyikan tombol admin di kartu
+    // Ini penting karena filterSchedules() memanggil renderSchedules()
+    filterSchedules();
+};
+
+const initNetlifyIdentity = () => {
+    // Pastikan elemen container widget ada
+     if (adminElements.netlifyIdentityWidgetContainer) {
+        // Inisialisasi Netlify Identity Widget
+        // Pastikan script widget sudah di-load di HTML
+        if (window.netlifyIdentity) {
+            window.netlifyIdentity.init({
+                container: '#netlifyIdentityWidget', // Target container
+                // locale: 'id' // Opsional: Coba set bahasa jika didukung
+            });
+
+            // Dengarkan event login, logout, dan error
+            window.netlifyIdentity.on('login', (user) => {
+                console.log('Netlify Identity: Login event');
+                window.netlifyIdentity.close(); // Tutup modal widget
+                setupAdminFeatures(user);
+            });
+
+            window.netlifyIdentity.on('logout', () => {
+                console.log('Netlify Identity: Logout event');
+                setupAdminFeatures(null);
+            });
+
+            window.netlifyIdentity.on('error', (err) => {
+                console.error('Netlify Identity Error:', err);
+                showError(`Masalah autentikasi: ${err.message || 'Error tidak diketahui'}`);
+            });
+
+            // Cek status login saat halaman pertama kali dimuat
+            setupAdminFeatures(window.netlifyIdentity.currentUser());
+
+        } else {
+             console.error("Netlify Identity script not loaded yet or failed to load.");
+             showError("Gagal memuat komponen autentikasi.");
+        }
+
+    } else {
+        console.warn("Netlify Identity widget container (#netlifyIdentityWidget) not found. Admin features disabled.");
+    }
+};
+
+
+// ======================
+// UTILITIES
+// ======================
+const formatDate = (dateString) => {
+    // Handle jika input null atau undefined
+    if (!dateString) return 'Tanggal tidak valid';
+
+    const date = (dateString instanceof Date) ? dateString : new Date(dateString + 'T00:00:00Z'); // Gunakan UTC
+
+    if (isNaN(date.getTime())) {
+        return 'Tanggal tidak valid';
+    }
+
+    // Format tanggal ke Bahasa Indonesia (Senin, 4 Mei 2025)
+    const options = {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' // Tentukan timezone agar konsisten
+    };
+    return date.toLocaleDateString('id-ID', options);
+};
+
+const showLoading = () => {
+    if(elements.loading) elements.loading.style.display = 'flex';
+    if(elements.scheduleGrid) elements.scheduleGrid.style.display = 'none';
+    hideEmptyState(); // Sembunyikan pesan kosong saat loading
+};
+
+const hideLoading = () => {
+     if(elements.loading) elements.loading.style.display = 'none';
+     if(elements.scheduleGrid) elements.scheduleGrid.style.display = 'grid'; // Tampilkan grid lagi
+};
+
+const showEmptyState = (message = "Tidak ada jadwal yang ditemukan.") => {
+    if(elements.emptyState) {
+        elements.emptyState.style.display = 'flex';
+        elements.emptyState.innerHTML = `
+            <i class="fas fa-ghost empty-icon"></i>
+            <h3>Oops! Kosong</h3>
+            <p>${message}</p>
+        `;
+    }
+     if(elements.scheduleGrid) elements.scheduleGrid.style.display = 'none'; // Sembunyikan grid
+};
+
+const hideEmptyState = () => {
+    if(elements.emptyState) elements.emptyState.style.display = 'none';
+};
+
+const showError = (message = 'Terjadi kesalahan.') => {
+    hideLoading(); // Pastikan loading hilang
+    if(elements.scheduleGrid) elements.scheduleGrid.style.display = 'none';
+    if(elements.emptyState) {
+        elements.emptyState.style.display = 'flex';
+        // Tampilkan pesan error di area empty state
+        elements.emptyState.innerHTML = `
+            <i class="fas fa-exclamation-triangle empty-icon error-icon"></i>
+            <h3>Terjadi Kesalahan</h3>
+            <p>${message}</p>
+        `;
+    }
+};
+
+// Debounce function
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// ======================
+// EVENT LISTENERS DINAMIS (Delegation)
+// ======================
+const attachDynamicListeners = () => {
+    document.body.addEventListener('click', (e) => {
+        const target = e.target;
+
+        // Klik pada entitas di kartu jadwal (delegasi dari body)
+        if (target.classList.contains('clickable') && target.dataset.entity) {
+            handleEntityClick(target);
+        }
+
+        // Klik tombol close modal atau overlay
+        if (target === elements.modalOverlay || target.closest('.close-modal')) {
+             hideModal();
+        }
+
+        // Klik tombol Edit (Tambahkan logika handleEditClick nanti)
+        if (target.classList.contains('btn-edit')) {
+            const scheduleId = target.dataset.id;
+            console.log(`Edit button clicked for ID: ${scheduleId}`);
+            // handleEditClick(scheduleId); // Panggil fungsi edit
+        }
+
+        // Klik tombol Delete (Tambahkan logika handleDeleteClick nanti)
+        if (target.classList.contains('btn-delete')) {
+            const scheduleId = target.dataset.id;
+            console.log(`Delete button clicked for ID: ${scheduleId}`);
+            // handleDeleteClick(scheduleId); // Panggil fungsi delete
         }
     });
-    // Add event listener to the container for delegation
-    elements.scheduleContainer.addEventListener('click', handleEntityClick);
-
-    // Add event listener for the new schedule form
-    elements.addScheduleForm.addEventListener('submit', handleCreateScheduleSubmit);
-
-    // Add Netlify Identity event listeners
-    netlifyIdentity.on('init', user => updateAuthUI());
-    netlifyIdentity.on('login', user => {
-        updateAuthUI();
-        fetchSchedules(); // Refresh data on login in case new data is relevant
-    });
-    netlifyIdentity.on('logout', () => {
-        updateAuthUI();
-        fetchSchedules(); // Refresh data on logout
-    });
-
-    // Theme toggle listener
-    elements.themeToggle.addEventListener('click', toggleTheme);
 };
 
-// ======================
-// Initialization
-// ======================
-const initApp = () => {
-    loadTheme(); // Muat tema saat aplikasi dimulai
-    addEventListeners();
-    netlifyIdentity.init(); // Inisialisasi Netlify Identity
-    fetchSchedules(); // Fetch data on initial load
-};
 
-// Start the application
-initApp();
+// ======================
+// INISIALISASI UTAMA APLIKASI
+// ======================
+document.addEventListener('DOMContentLoaded', () => {
+    console.log("DOM fully loaded and parsed. Initializing application...");
+
+    // Pastikan elemen dasar ada sebelum melanjutkan
+    if (!elements.scheduleGrid || !elements.loading || !elements.emptyState) {
+        console.error("Initialization failed: Essential elements not found in the DOM.");
+        document.body.innerHTML = "<p style='color:red; padding: 20px;'>Error Kritis: Elemen dasar aplikasi tidak ditemukan. Periksa struktur HTML Anda.</p>";
+        return; // Hentikan eksekusi jika elemen dasar hilang
+    }
+
+    initTheme(); // Set tema
+    initNetlifyIdentity(); // Siapkan autentikasi
+    fetchData(); // Ambil data awal
+    attachDynamicListeners(); // Pasang listener utama
+
+    // Listener statis (misal: toggle tema)
+    if (elements.themeToggleBtn) {
+        elements.themeToggleBtn.addEventListener('click', toggleTheme);
+    }
+
+    // Listener untuk form tambah (jika formnya ada)
+    if (adminElements.addScheduleForm) {
+        adminElements.addScheduleForm.addEventListener('submit', handleAddScheduleSubmit);
+        console.log("Add schedule form listener attached.");
+    } else {
+        console.warn("Add schedule form element not found. 'Tambah Jadwal' feature disabled.");
+    }
+
+    // Listener untuk tombol Escape menutup modal
+     window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && elements.modal && elements.modal.style.display === 'block') {
+            hideModal();
+        }
+    });
+
+    console.log("Application initialization complete.");
+});
