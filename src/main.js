@@ -1,119 +1,120 @@
-import './styles.css';
-const API_URL = '/api/getSchedules';
+import './style.css';
 
-// Elemen DOM
+// ======================
+// DOM Elements
+// ======================
 const elements = {
-    searchInput: document.getElementById('searchInput'),
-    institutionFilter: document.getElementById('institutionFilter'),
-    scheduleGrid: document.getElementById('scheduleGrid'),
-    loading: document.getElementById('loading'),
-    emptyState: document.getElementById('emptyState'),
-    modal: document.getElementById('genericModal'),
-    modalTitle: document.getElementById('modalTitle'),
-    modalBody: document.getElementById('modalBody'),
-    closeModalBtn: document.querySelector('.close-modal'),
-    modalOverlay: document.querySelector('.modal-overlay'),
-    themeToggleBtn: document.getElementById('themeToggle')
-};
-
-let allSchedules = [];
-let initialLoad = true; // Flag for initial load animation
-
-// ======================
-// THEME MANAGEMENT
-// ======================
-const initTheme = () => {
-    const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    updateThemeIcon(savedTheme);
-};
-
-const toggleTheme = () => {
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-    updateThemeIcon(newTheme);
-};
-
-const updateThemeIcon = (theme) => {
-    const themeIcon = elements.themeToggleBtn.querySelector('.theme-icon');
-    // Style changes handled by CSS based on data-theme attribute
-    // Optional: Add class for animation control if needed
-    // themeIcon.style.transform = theme === 'dark' ? 'rotate(40deg)' : 'rotate(0deg)'; // Handled by CSS now
+    scheduleContainer: document.getElementById('schedule-container'),
+    searchInput: document.getElementById('search-input'),
+    institutionFilter: document.getElementById('institution-filter'),
+    loadingIndicator: document.getElementById('loading-indicator'),
+    modal: document.getElementById('details-modal'),
+    modalTitle: document.getElementById('modal-title'),
+    modalBody: document.getElementById('modal-body'),
+    closeModalBtn: document.querySelector('.close-button'),
+    noResultsMessage: document.getElementById('no-results'),
 };
 
 // ======================
-// DATA MANAGEMENT
+// State
 // ======================
-const fetchData = async () => {
+let allSchedules = []; // Holds all fetched and processed schedule data
+let isLoading = false;
+
+// ======================
+// Utility Functions
+// ======================
+const formatDate = (dateString) => {
+    if (!dateString) return 'Tanggal tidak valid';
     try {
-        showLoading();
-        const response = await fetch(API_URL);
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) {
+            return 'Tanggal tidak valid';
+        }
+        return date.toLocaleDateString('id-ID', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+    } catch (error) {
+        console.error("Error formatting date:", dateString, error);
+        return 'Tanggal tidak valid';
+    }
+};
+
+const setLoading = (loading) => {
+    isLoading = loading;
+    elements.loadingIndicator.style.display = loading ? 'block' : 'none';
+};
+
+// ======================
+// Data Fetching
+// ======================
+const fetchSchedules = async () => {
+    setLoading(true);
+    elements.noResultsMessage.style.display = 'none'; // Hide no results message initially
+    try {
+        // Use relative path for API call, Netlify rewrite handles it
+        const response = await fetch('/api/getSchedules');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
 
         const today = new Date();
-        today.setHours(0, 0, 0, 0); // Set to beginning of today
+        today.setHours(0, 0, 0, 0); // Set time to beginning of the day for comparison
 
-        // Process and sort data
+        // Process and filter data immediately after fetching
         allSchedules = data
             .filter(item => {
                 // Basic validation: Ensure essential fields exist and date is valid
+                // Use lowercase property names and check if peserta is an array
                 return item.tanggal && item.institusi && item.mata_pelajaran && item.peserta && Array.isArray(item.peserta) && !isNaN(new Date(item.tanggal).getTime());
             })
             .map(item => ({ ...item, TanggalDate: new Date(item.tanggal) })) // Pre-convert date for sorting/filtering
-            .filter(item => item.TanggalDate >= today) // Use the pre-converted date
-            .sort((a, b) => a.TanggalDate - b.TanggalDate);
+            .filter(item => item.TanggalDate >= today) // Filter out past dates using the pre-converted date
+            .sort((a, b) => a.TanggalDate - b.TanggalDate); // Sort by date ascending
 
-        initFilters();
-        filterSchedules(); // Initial render based on default filters
-        attachDynamicListeners();
+        initFilters(); // Initialize filters only after data is loaded
+        displaySchedules(); // Display initial data
 
     } catch (error) {
-        console.error('Fetch Error:', error);
-        showError('Gagal memuat data jadwal. Periksa koneksi Anda atau coba lagi nanti.');
+        console.error("Gagal mengambil jadwal:", error);
+        elements.scheduleContainer.innerHTML = '<p class="error-message">Tidak dapat memuat jadwal. Silakan coba lagi nanti.</p>';
+        elements.noResultsMessage.style.display = 'none'; // Ensure no results isn't shown on fetch error
     } finally {
-        hideLoading();
-        initialLoad = false; // Mark initial load as complete
+        setLoading(false);
     }
 };
 
 // ======================
-// FILTER SYSTEM
+// Filtering and Searching
 // ======================
 const initFilters = () => {
     // Use a Set for unique institutions and sort them alphabetically
+    // Use lowercase property name 'institusi'
     const institutions = [...new Set(allSchedules.map(item => item.institusi))].sort((a, b) => a.localeCompare(b));
     const filterSelect = elements.institutionFilter;
 
     // Clear existing options (except the default "Semua Institusi")
-    filterSelect.length = 1; // Keep the first option
+    while (filterSelect.options.length > 1) {
+        filterSelect.remove(1);
+    }
 
-    // Add new options
+    // Populate filter dropdown
     institutions.forEach(inst => {
         const option = document.createElement('option');
         option.value = inst;
         option.textContent = inst;
         filterSelect.appendChild(option);
     });
-
-    // Add event listeners only once
-    if (!filterSelect.dataset.listenerAttached) {
-        elements.searchInput.addEventListener('input', debounce(filterSchedules, 300)); // Debounce search input
-        filterSelect.addEventListener('change', filterSchedules);
-        filterSelect.dataset.listenerAttached = 'true';
-    }
 };
 
-const filterSchedules = () => {
+const filterAndSearchSchedules = () => {
     const searchTerm = elements.searchInput.value.toLowerCase().trim();
     const selectedInstitution = elements.institutionFilter.value;
 
     const filtered = allSchedules.filter(item => {
         // Combine relevant fields into a single string for searching
+        // Use lowercase property names and ensure peserta is an array
         const searchableText = [
             item.institusi,
             item.mata_pelajaran,
@@ -122,77 +123,62 @@ const filterSchedules = () => {
         ].join(' ').toLowerCase();
 
         const matchesSearch = searchTerm === '' || searchableText.includes(searchTerm);
+        // Use lowercase property name 'institusi' for filtering
         const matchesInstitution = selectedInstitution === 'all' || item.institusi === selectedInstitution;
 
         return matchesSearch && matchesInstitution;
     });
 
-    renderSchedules(filtered);
+    displaySchedules(filtered);
 };
 
 // ======================
-// RENDERING
+// UI Rendering
 // ======================
-const renderSchedules = (data) => {
-    elements.scheduleGrid.innerHTML = ''; // Clear previous results
+const displaySchedules = (schedulesToDisplay = allSchedules) => {
+    elements.scheduleContainer.innerHTML = ''; // Clear previous results
 
-    if (data.length === 0) {
-        showEmptyState();
-        hideLoading(); // Ensure loading is hidden
-        return;
+    if (schedulesToDisplay.length === 0 && !isLoading) {
+        elements.noResultsMessage.style.display = 'block'; // Show no results message
+    } else {
+        elements.noResultsMessage.style.display = 'none'; // Hide no results message
+        schedulesToDisplay.forEach(item => {
+            const card = createScheduleCard(item);
+            elements.scheduleContainer.appendChild(card);
+        });
     }
-
-    hideEmptyState();
-    hideLoading(); // Ensure loading is hidden
-
-    const fragment = document.createDocumentFragment();
-    data.forEach(item => {
-        const card = createScheduleCard(item);
-        fragment.appendChild(card);
-    });
-    elements.scheduleGrid.appendChild(fragment);
 };
 
 const createScheduleCard = (item) => {
-    const card = document.createElement('article');
+    const card = document.createElement('div');
     card.className = 'schedule-card';
+    // Use lowercase property names here and in data-entity attributes
     card.innerHTML = `
         <div class="card-header">
-            <h3 class="course-title clickable" data-entity="mata_pelajaran">${item.mata_pelajaran}</h3>
-            <span class="date-display clickable" data-entity="tanggal">${formatDate(item.tanggal)}</span>
+            <h3 class="course-title clickable" data-entity="mata_pelajaran" data-value="${item.mata_pelajaran}">${item.mata_pelajaran}</h3>
+            <span class="date-display clickable" data-entity="tanggal" data-value="${item.tanggal}">${formatDate(item.tanggal)}</span>
         </div>
-        <div class="institute clickable" data-entity="institusi">${item.institusi}</div>
+        <div class="institute clickable" data-entity="institusi" data-value="${item.institusi}">${item.institusi}</div>
         <div class="participants">
             ${Array.isArray(item.peserta) ? item.peserta.map(peserta => `
-                <span class="participant-tag clickable" data-entity="Peserta">${peserta}</span>
-            `).join('')}
+                <span class="participant-tag clickable" data-entity="peserta" data-value="${peserta}">${peserta}</span>
+            `).join('') : '<span class="no-participants">Peserta tidak tersedia</span>'}
         </div>
     `;
     return card;
 };
 
 // ======================
-// MODAL SYSTEM
+// Modal Logic
 // ======================
-const showGenericModal = (title, data) => {
-    elements.modalTitle.textContent = title;
-    elements.modalBody.innerHTML = generateModalContent(data);
-    elements.modal.style.display = 'block'; // Show modal
-    document.body.style.overflow = 'hidden'; // Prevent background scrolling
-    // Focus management could be added here for accessibility
-};
-
-const hideModal = () => {
-    elements.modal.style.display = 'none';
-    document.body.style.overflow = ''; // Restore background scrolling
-};
-
-const generateModalContent = (data) => {
-    if (!data || data.length === 0) {
-        return '<p class="no-data">Tidak ada data jadwal terkait yang ditemukan.</p>';
+const createModalContent = (data, titlePrefix) => {
+    elements.modalTitle.textContent = `${titlePrefix} (${data.length} Jadwal)`;
+    if (data.length === 0) {
+        elements.modalBody.innerHTML = '<p>Tidak ada jadwal yang cocok ditemukan.</p>';
+        return;
     }
-
-    return data.map(item => `
+    // Use lowercase property names
+    elements.modalBody.innerHTML = data.map(item => `
         <div class="modal-item">
             <div class="card-header">
                 <h4 class="course-title">${item.mata_pelajaran}</h4>
@@ -208,156 +194,65 @@ const generateModalContent = (data) => {
     `).join('');
 };
 
-// ======================
-// EVENT HANDLERS
-// ======================
-const handleEntityClick = (element) => {
-    const entityType = element.dataset.entity;
-    const value = element.textContent;
-    let filterProperty = entityType;
+const openModal = () => elements.modal.style.display = 'flex';
+const closeModal = () => elements.modal.style.display = 'none';
+
+const handleEntityClick = (event) => {
+    const target = event.target.closest('.clickable');
+    if (!target) return;
+
+    const entityType = target.dataset.entity; // Should be lowercase now (e.g., 'mata_pelajaran', 'tanggal', 'institusi', 'peserta')
+    const value = target.dataset.value;
+    const filterProperty = entityType; // Direct mapping now works
+
+    if (!entityType || !value) return;
+
+    let filteredData;
     let modalTitlePrefix = '';
 
-    // Prepare data based on clicked entity
-    let filteredData;
-    if (entityType === 'peserta') { // Note: data-entity in HTML was 'Peserta', adjust if needed or keep logic flexible
+    // Prepare data based on clicked entity (using lowercase entityType)
+    if (entityType === 'peserta') {
         filteredData = allSchedules.filter(item => Array.isArray(item.peserta) && item.peserta.includes(value));
         modalTitlePrefix = `Jadwal untuk ${value}`;
     } else if (entityType === 'tanggal') {
-        // Match by formatted date string if needed, or re-filter by date object
-         const clickedDateStr = formatDate(value); // Assuming value is a parseable date string initially
-         filteredData = allSchedules.filter(item => formatDate(item.tanggal) === clickedDateStr);
-         modalTitlePrefix = `Jadwal pada ${value}`;
-    }
-     else { // mata_pelajaran or institusi
+         // Filter by the original date string to find matches
+         filteredData = allSchedules.filter(item => item.tanggal === value);
+         modalTitlePrefix = `Jadwal pada ${formatDate(value)}`; // Format the title nicely
+    } else { // mata_pelajaran or institusi
         filteredData = allSchedules.filter(item => item[filterProperty] === value);
         modalTitlePrefix = `Jadwal ${value}`;
     }
 
-    // Filter out past schedules for the modal view as well (optional, depends on desired behavior)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const futureFilteredData = filteredData.filter(item => item.TanggalDate >= today);
+    // Sort modal results by date as well
+    filteredData.sort((a, b) => a.TanggalDate - b.TanggalDate);
 
-
-    showGenericModal(modalTitlePrefix, futureFilteredData);
+    createModalContent(filteredData, modalTitlePrefix);
+    openModal();
 };
 
-
-// Use event delegation for dynamically added elements
-const attachDynamicListeners = () => {
-    document.body.addEventListener('click', (e) => {
-        const target = e.target;
-
-        // Handle clicks on clickable entities within cards or modal
-        if (target.classList.contains('clickable') && target.dataset.entity) {
-            handleEntityClick(target);
-        }
-
-        // Close modal logic
-        if (target === elements.modalOverlay || target === elements.closeModalBtn || target.closest('.close-modal')) {
-             hideModal();
+// ======================
+// Event Listeners
+// ======================
+const addEventListeners = () => {
+    elements.searchInput.addEventListener('input', filterAndSearchSchedules);
+    elements.institutionFilter.addEventListener('change', filterAndSearchSchedules);
+    elements.closeModalBtn.addEventListener('click', closeModal);
+    window.addEventListener('click', (event) => {
+        if (event.target === elements.modal) {
+            closeModal();
         }
     });
+    // Add event listener to the container for delegation
+    elements.scheduleContainer.addEventListener('click', handleEntityClick);
 };
 
 // ======================
-// UTILITIES
+// Initialization
 // ======================
-const formatDate = (dateString) => {
-    // Check if dateString is already a Date object (from processing)
-    const date = (dateString instanceof Date) ? dateString : new Date(dateString);
-
-    if (isNaN(date.getTime())) {
-        return 'Tanggal tidak valid'; // Handle invalid date strings
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const inputDateOnly = new Date(date);
-    inputDateOnly.setHours(0, 0, 0, 0);
-
-    const options = {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: (inputDateOnly.getFullYear() !== today.getFullYear()) ? 'numeric' : undefined
-    };
-    return inputDateOnly.toLocaleDateString('id-ID', options);
+const initApp = () => {
+    addEventListeners();
+    fetchSchedules(); // Fetch data on initial load
 };
 
-const showLoading = () => {
-    elements.loading.classList.remove('hidden');
-    elements.loading.style.display = 'flex'; // Ensure display is correct
-    elements.emptyState.classList.add('hidden');
-    elements.scheduleGrid.style.display = 'none'; // Hide grid while loading
-};
-
-const hideLoading = () => {
-    elements.loading.classList.add('hidden');
-     elements.loading.style.display = 'none';
-     elements.scheduleGrid.style.display = 'grid'; // Show grid again
-};
-
-const showEmptyState = () => {
-    elements.emptyState.classList.remove('hidden');
-    elements.emptyState.style.display = 'flex'; // Ensure display is correct
-    elements.scheduleGrid.style.display = 'none'; // Hide grid
-    elements.emptyState.innerHTML = `
-        <i class="fas fa-ghost empty-icon"></i>
-        <h3>Oops! Jadwal tidak ditemukan</h3>
-        <p>Coba kata kunci atau filter yang berbeda.</p>
-    `;
-};
-
-const hideEmptyState = () => {
-    elements.emptyState.classList.add('hidden');
-     elements.emptyState.style.display = 'none';
-};
-
-const showError = (message = 'Terjadi kesalahan.') => {
-    hideLoading();
-    elements.scheduleGrid.style.display = 'none'; // Hide grid on error
-    elements.emptyState.classList.remove('hidden');
-    elements.emptyState.style.display = 'flex';
-    elements.emptyState.innerHTML = `
-        <i class="fas fa-exclamation-triangle empty-icon" style="color: #e74c3c;"></i>
-        <h3>Terjadi Kesalahan</h3>
-        <p>${message}</p>
-    `;
-};
-
-// Debounce function to limit frequency of function calls (e.g., on search input)
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
-
-// ======================
-// INITIALIZATION
-// ======================
-document.addEventListener('DOMContentLoaded', () => {
-    initTheme();
-    fetchData(); // Fetch data after DOM is loaded
-
-    // Static event listeners
-    elements.themeToggleBtn.addEventListener('click', toggleTheme);
-
-    // Modal closing listeners (already handled by delegation in attachDynamicListeners)
-    // elements.closeModalBtn.addEventListener('click', hideModal);
-    // elements.modalOverlay.addEventListener('click', hideModal); // Click outside modal content
-
-    // Close modal with Escape key
-     window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && elements.modal.style.display === 'block') {
-            hideModal();
-        }
-    });
-});
+// Start the application
+initApp();
