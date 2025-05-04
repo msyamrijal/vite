@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jadwal Kuliah</title>
+    <style>
+        /* Sedikit style dasar agar tidak terlalu berantakan */
+        body { font-family: sans-serif; line-height: 1.6; padding: 15px; }
+        .schedule-item { border: 1px solid #ccc; margin-bottom: 15px; padding: 10px; }
+        .loading, .empty-state, .error-state { padding: 20px; text-align: center; color: #666; }
+        .error-state { color: red; }
+        h1 { text-align: center; margin-bottom: 20px; }
+        h2 { margin-top: 0; font-size: 1.2em; }
+        strong { display: inline-block; min-width: 120px; }
+        ul { padding-left: 20px; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <h1>Jadwal Kuliah</h1>
+
+    <div id="loading" class="loading">Memuat Jadwal...</div>
+
+    <div id="scheduleGrid">
+        </div>
+
+    <div id="emptyState" class="empty-state" style="display: none;">
+        Tidak ada jadwal ditemukan.
+    </div>
+
+    <div id="errorState" class="error-state" style="display: none;">
+        </div>
+
+    <script type="module" src="/src/main.js"></script>
+
+</body>
+</html>
