@@ -1,66 +1,115 @@
 <!doctype html>
-<html lang="en">
-  <head>
+<html lang="id">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jadwal Kuliah Interaktif</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    
+    <title>Jadwal Kegiatan Interaktif</title>
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite App</title>
-  </head>
-  <body>
-    <div id="app"></div>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons (Font Awesome) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="/src/style.css">
+    <!-- Netlify Identity Widget -->
+    <script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+</head>
+<body>
+    <div id="app">
+        <header class="header">
+            <div class="header-top container">
+                <div class="brand">
+                    <i class="fas fa-calendar-alt brand-icon"></i>
+                    <h1 class="brand-title">Jadwal Kegiatan</h1>
+                </div>
+
+                <!-- Netlify Identity Login/Logout Button -->
+                <div data-netlify-identity-menu></div>
+
+                <button id="themeToggle" class="theme-toggle" aria-label="Toggle Light/Dark Theme">
+                    <span class="theme-icon"></span> <!-- Icon akan diatur via CSS -->
+                </button>
+            </div>
+            <div class="header-filters container">
+                 <!-- Bagian Filter dan Pencarian -->
+                <div class="search-filter">
+                    <div class="search-container">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="search-input" class="search-input" placeholder="Cari institusi, mapel, peserta...">
+                    </div>
+                    <select id="institution-filter" class="institution-filter">
+                        <option value="all">Semua Institusi</option>
+                        <!-- Opsi institusi akan ditambahkan oleh JavaScript -->
+                    </select>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content container">
+
+            <!-- Form untuk Menambah Jadwal Baru -->
+            <section id="add-schedule-section" class="card add-form-section">
+                 <p id="login-prompt" class="feedback-message info" style="display: none;">Silakan <button class="link-button" onclick="netlifyIdentity.open('login')">login</button> untuk menambahkan jadwal.</p>
+                <h2>Tambah Jadwal Baru</h2>
+                <form id="add-schedule-form" style="display: none;"> <!-- Initially hidden -->
+                    <div class="form-group">
+                        <label for="new-institusi">Institusi:</label>
+                        <input type="text" id="new-institusi" name="institusi" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-mata_pelajaran">Mata Pelajaran:</label>
+                        <input type="text" id="new-mata_pelajaran" name="mata_pelajaran" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-tanggal">Tanggal:</label>
+                        <input type="date" id="new-tanggal" name="tanggal" required pattern="\d{4}-\d{2}-\d{2}">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-peserta">Peserta (pisahkan dengan koma):</label>
+                        <input type="text" id="new-peserta" name="peserta" required placeholder="Contoh: Budi, Ani, Candra">
+                        <small>Pisahkan setiap nama peserta dengan koma.</small>
+                    </div>
+                    <button type="submit" id="submit-schedule-btn" class="button primary-button">Tambah Jadwal</button>
+                    <p id="add-schedule-feedback" class="feedback-message" aria-live="polite"></p>
+                </form>
+            </section>
+
+            <!-- Tampilan Jadwal -->
+            <section id="schedule-display">
+                <h2>Jadwal Mendatang</h2>
+                <div class="loading-indicator" id="loading-indicator">
+                    <div class="spinner"></div>
+                    <p>Memuat Jadwal...</p>
+                </div>
+
+                <div id="schedule-container" class="schedule-grid" aria-live="polite">
+                    <!-- Kartu jadwal akan dimasukkan di sini oleh JavaScript -->
+                </div>
+
+                <div class="empty-state" id="no-results">
+                    <i class="fas fa-ghost empty-icon"></i>
+                    <h3>Oops! Jadwal tidak ditemukan</h3>
+                    <p>Tidak ada jadwal yang sesuai dengan filter atau pencarian Anda.</p>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Modal Detail -->
+        <div class="modal" id="details-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" style="display: none;">
+            <div class="modal-overlay" onclick="document.getElementById('details-modal').style.display='none'"></div>
+            <div class="modal-content">
+                <button class="close-button" aria-label="Close modal" onclick="document.getElementById('details-modal').style.display='none'">&times;</button>
+                <h3 id="modal-title" class="modal-title">Detail Jadwal</h3>
+                <div class="modal-body" id="modal-body">
+                    <!-- Konten modal akan dimasukkan di sini oleh JavaScript -->
+                </div>
+            </div>
+        </div>
+
+    </div> <!-- Akhir div #app -->
+
+    <!-- Main JavaScript -->
     <script type="module" src="/src/main.js"></script>
-    <header class="header">
-      <div class="header-top container">
-          <div class="brand">
-              <i class="fas fa-calendar-alt brand-icon"></i>
-              <h1 class="brand-title">Jadwal Kuliah</h1>
-          </div>
-
-          <div class="search-filter">
-              <div class="search-container">
-                  <i class="fas fa-search search-icon"></i>
-                  <input type="text" id="searchInput" class="search-input" placeholder="Cari mata kuliah, peserta...">
-              </div>
-              <select id="institutionFilter" class="institution-filter">
-                  <option value="all">Semua Institusi</option>
-                  </select>
-          </div>
-
-          <button id="themeToggle" class="theme-toggle" aria-label="Toggle Light/Dark Theme">
-              <span class="theme-icon"></span>
-          </button>
-      </div>
-  </header>
-
-  <main class="main-content container">
-      <div class="loading" id="loading">
-          <div class="spinner"></div>
-          <p>Memuat Jadwal...</p>
-      </div>
-
-      <section id="scheduleGrid" class="schedule-grid" aria-live="polite">
-          </section>
-
-      <div class="empty-state" id="emptyState">
-          <i class="fas fa-ghost empty-icon"></i>
-          <h3>Oops! Jadwal tidak ditemukan</h3>
-          <p>Coba kata kunci atau filter yang berbeda.</p>
-      </div>
-  </main>
-
-  <div class="modal" id="genericModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-      <div class="modal-overlay"></div>
-      <div class="modal-content">
-          <button class="close-modal" aria-label="Close modal">&times;</button>
-          <h3 id="modalTitle" class="modal-title">Detail Jadwal</h3>
-          <div class="modal-body" id="modalBody">
-              </div>
-      </div>
-  </div>
-  </body>
+</body>
 </html>
