@@ -1,5 +1,5 @@
 import './styles.css';
-const API_URL = 'https://script.google.com/macros/s/AKfycby9sPywic_2ifeYBzE3dQMHfrwkR4-fQv-bNx74HMduvcq5Rr4r9MY6GGEYNqI44WRI/exec';
+const API_URL = '/api/getSchedules';
 
 // Elemen DOM
 const elements = {

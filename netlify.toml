@@ -1,0 +1,15 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[functions]
+  # Directory containing function source code relative to the base directory
+  directory = "netlify/functions/"
+  # Node.js runtime version. Make sure it's supported by Netlify and googleapis
+  node_bundler = "esbuild" # Recommended for faster builds
+  included_files = ["src/data/**"] # Example if you had data files to include
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
