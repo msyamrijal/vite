@@ -1,116 +1,80 @@
-// netlify/functions/getSchedules.js
-const { google } = require('googleapis');
+// Lokasi file: netlify/functions/getSchedules.js
 
-// Fungsi handler Netlify Function
+// Impor Supabase client library
+import { createClient } from '@supabase/supabase-js';
+
+// Ambil Supabase URL dan Anon Key dari Netlify Environment Variables
+// Pastikan Anda sudah set variabel ini di Netlify UI!
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+
+// Lakukan pengecekan awal saat fungsi di-load (best practice)
+if (!supabaseUrl || !supabaseAnonKey) {
+    console.error("FATAL: Supabase URL or Anon Key environment variable is missing.");
+}
+
+// Inisialisasi Supabase Client di luar handler agar bisa reuse koneksi
+// Kita gunakan Anon Key karena ini endpoint publik untuk membaca data
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Fungsi handler utama Netlify Function
 exports.handler = async (event, context) => {
+
+    // Validasi ulang di dalam handler jika diperlukan (meskipun sudah dicek di luar)
+    if (!supabaseUrl || !supabaseAnonKey) {
+        console.error("Supabase URL or Anon Key missing inside handler.");
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ error: 'Server configuration error.' }),
+            headers: { 'Content-Type': 'application/json' },
+        };
+    }
+
     try {
-        // Ambil kredensial, ID Spreadsheet, dan Range dari environment variables
-        const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS);
-        const spreadsheetId = process.env.SPREADSHEET_ID;
-        // Sesuaikan 'Database!A:F' jika nama sheet atau range kolom Anda berbeda
-        // Range ini harus mencakup semua kolom yang dibutuhkan (Institusi, Mata_Pelajaran, Tanggal, Peserta)
-        const range = process.env.SHEET_RANGE || 'Database!A:F';
+        console.log("Attempting to fetch schedules from Supabase..."); // Log untuk debugging
 
-        // Validasi environment variables
-        if (!credentials || !spreadsheetId) {
-            throw new Error("Missing Google credentials or Spreadsheet ID environment variables.");
-        }
+        // Ganti 'schedules' jika nama tabel Anda berbeda
+        const tableName = 'schedules';
 
-        // Siapkan otentikasi
-        const auth = new google.auth.GoogleAuth({
-            credentials,
-            scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-        });
+        // Query data dari Supabase
+        let { data: schedules, error } = await supabase
+            .from(tableName)
+            // Pilih kolom yang dibutuhkan oleh frontend Anda
+            .select('id, institusi, mata_pelajaran, tanggal, peserta')
+            // Urutkan berdasarkan tanggal, dari yang paling awal
+            .order('tanggal', { ascending: true });
 
-        const sheets = google.sheets({ version: 'v4', auth });
-
-        // Panggil API untuk mendapatkan data
-        console.log(`Workspaceing data from Spreadsheet ID: ${spreadsheetId}, Range: ${range}`); // Log untuk debugging
-        const response = await sheets.spreadsheets.values.get({
-            spreadsheetId: spreadsheetId,
-            range: range,
-        });
-
-        const rows = response.data.values;
-
-        if (!rows || rows.length < 2) { // Butuh setidaknya 1 baris header + 1 baris data
-            console.log("No data found or only header row present."); // Log untuk debugging
-            return {
-                statusCode: 200,
-                body: JSON.stringify([]),
+        // Tangani jika ada error dari Supabase
+        if (error) {
+            console.error("Supabase fetch error:", error);
+            // Jangan ekspos detail error Supabase ke client jika tidak perlu
+            // throw new Error(`Supabase error: ${error.message}`); // Opsi 1: Lempar error internal
+            // Opsi 2: Kembalikan error generik tapi log detailnya
+             return {
+                statusCode: 500, // Atau kode status error Supabase jika tersedia (error.code)
+                body: JSON.stringify({ error: 'Failed to retrieve schedule data from database.'}),
                 headers: { 'Content-Type': 'application/json' },
             };
         }
 
-        // --- Transformasi Data berdasarkan Header CSV ---
-        const headers = rows[0].map(header => header.trim()); // Baris pertama sebagai header
-        console.log("Detected Headers:", headers); // Log untuk debugging
+        console.log(`Successfully fetched ${schedules ? schedules.length : 0} schedules from table '${tableName}'.`); // Log jumlah data
 
-        // Cari index kolom yang dibutuhkan (lebih robust daripada hardcode index)
-        const institusiIndex = headers.indexOf('Institusi');
-        const mataPelajaranIndex = headers.indexOf('Mata_Pelajaran');
-        const tanggalIndex = headers.indexOf('Tanggal');
-        const pesertaIndex = headers.indexOf('Peserta');
-
-        // Periksa apakah semua header yang dibutuhkan ada
-        if (institusiIndex === -1 || mataPelajaranIndex === -1 || tanggalIndex === -1 || pesertaIndex === -1) {
-             console.error("Missing required headers in the sheet. Found:", headers);
-             throw new Error("One or more required headers (Institusi, Mata_Pelajaran, Tanggal, Peserta) not found in the sheet.");
-        }
-
-        const data = rows.slice(1) // Mulai dari baris kedua (setelah header)
-            .map((row, rowIndex) => {
-                // Ambil data peserta mentah
-                const pesertaRaw = row[pesertaIndex] || ''; // Default string kosong jika kosong
-
-                // Proses kolom 'Peserta': Hapus newline, split by comma, trim, filter empty
-                const pesertaArray = pesertaRaw
-                    .replace(/(\r\n|\n|\r)/gm, " ") // Ganti newline dengan spasi (opsional)
-                    .split(',')
-                    .map(p => p.trim())
-                    .filter(p => p); // Hapus string kosong setelah split/trim
-
-                // Buat object schedule
-                const schedule = {
-                    // Ambil data berdasarkan index header yang ditemukan
-                    Institusi: row[institusiIndex] ? row[institusiIndex].trim() : '',
-                    Mata_Pelajaran: row[mataPelajaranIndex] ? row[mataPelajaranIndex].trim() : '',
-                    Tanggal: row[tanggalIndex] ? row[tanggalIndex].trim() : '', // Biarkan sebagai string, frontend akan format
-                    Peserta: pesertaArray,
-                    // ID dan Password (dan header lain) diabaikan
-                };
-
-                 // Optional: Validasi dasar (misal: pastikan tanggal tidak kosong)
-                 if (!schedule.Tanggal || !schedule.Institusi || !schedule.Mata_Pelajaran) {
-                    console.warn(`Skipping row ${rowIndex + 2} due to missing essential data:`, schedule);
-                    return null; // Tandai untuk dihapus nanti jika data penting kosong
-                 }
-
-
-                return schedule;
-            })
-            .filter(schedule => schedule !== null); // Hapus baris yang ditandai null karena data tidak valid
-
-        // --- Akhir Transformasi Data ---
-        console.log(`Successfully processed ${data.length} schedule items.`); // Log untuk debugging
-
-        // Kirim data JSON sebagai response
+        // Kembalikan data (atau array kosong jika tidak ada) dengan sukses
         return {
             statusCode: 200,
-            body: JSON.stringify(data),
+            body: JSON.stringify(schedules || []), // Pastikan selalu array
             headers: {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*', // Izinkan akses dari mana saja
+                'Access-Control-Allow-Origin': '*', // Izinkan akses dari domain manapun
             },
         };
 
     } catch (error) {
-        // Log error detail di Netlify Function Logs
-        console.error('Error in getSchedules function:', error);
-        // Kirim response error generik ke client
+        // Tangani error tak terduga lainnya
+        console.error('Unexpected error in getSchedules function:', error);
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: 'Failed to fetch schedule data', details: error.message }),
+            body: JSON.stringify({ error: 'An unexpected server error occurred.', details: error.message }),
             headers: { 'Content-Type': 'application/json' },
         };
     }
