@@ -1,27 +1,22 @@
-/* styles.css */
+/* src/styles.css */
 /* ====================== */
 /* BASE STYLES & VARIABLES */
 /* ====================== */
 :root {
     /* Light Theme */
-    --color-primary: #5A9261; /* Green */
+    --color-primary: #5A9261;
     --color-primary-dark: #47734C;
-    --color-secondary: #E8F0E9; /* Light green background */
-    --color-accent: #A0C4A3;  /* Softer green accent */
-    --color-text: #2C3E50; /* Dark blue/grey text */
-    --color-text-muted: #7F8C8D; /* Grey text */
-    --color-background: #FDFCFB; /* Off-white background */
-    --color-surface: #FFFFFF; /* White surface (cards, header) */
-    --color-border: #DEE2E6; /* Light grey border */
-    --color-error: #721c24; /* Dark red for error text */
-    --color-error-bg: #f8d7da; /* Light red for error background */
+    --color-secondary: #E8F0E9;
+    --color-accent: #A0C4A3;
+    --color-text: #2C3E50;
+    --color-text-muted: #7F8C8D;
+    --color-background: #FDFCFB;
+    --color-surface: #FFFFFF;
+    --color-border: #DEE2E6;
+    --color-error: #721c24;
+    --color-error-bg: #f8d7da;
     --color-error-border: #f5c6cb;
-    --color-success: #155724; /* Dark green for success text */
-    --color-success-bg: #d4edda; /* Light green for success background */
-    --color-success-border: #c3e6cb;
-    --color-warning: #856404; /* Dark yellow for warning text */
-    --color-warning-bg: #fff3cd; /* Light yellow for warning background */
-    --color-warning-border: #ffeeba;
+    /* Hapus variabel warna lain jika tidak dipakai */
 
     --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
     --shadow-md: 0 4px 10px rgba(0,0,0,0.1);
@@ -36,24 +31,19 @@
 
 [data-theme="dark"] {
     /* Dark Theme */
-    --color-primary: #7AB88A; /* Lighter green for dark mode */
+    --color-primary: #7AB88A;
     --color-primary-dark: #69A078;
-    --color-secondary: #3A414A; /* Dark grey secondary */
-    --color-accent: #587A5C;  /* Darker green accent */
-    --color-text: #EAEAEA; /* Light grey text */
-    --color-text-muted: #A0A0A0; /* Medium grey text */
-    --color-background: #282C34; /* Very dark grey background */
-    --color-surface: #343A40; /* Dark grey surface */
-    --color-border: #495057; /* Medium dark grey border */
-    --color-error: #f5c6cb; /* Light red for error text */
-    --color-error-bg: #721c24; /* Dark red for error background */
+    --color-secondary: #3A414A;
+    --color-accent: #587A5C;
+    --color-text: #EAEAEA;
+    --color-text-muted: #A0A0A0;
+    --color-background: #282C34;
+    --color-surface: #343A40;
+    --color-border: #495057;
+    --color-error: #f5c6cb;
+    --color-error-bg: #721c24;
     --color-error-border: #f5c6cb;
-    --color-success: #c3e6cb; /* Light green for success text */
-    --color-success-bg: #155724; /* Dark green for success background */
-    --color-success-border: #c3e6cb;
-    --color-warning: #ffeeba; /* Light yellow for warning text */
-    --color-warning-bg: #856404; /* Dark yellow for warning background */
-    --color-warning-border: #ffeeba;
+    /* Hapus variabel warna lain jika tidak dipakai */
 
     --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
     --shadow-md: 0 4px 10px rgba(0,0,0,0.4);
@@ -302,7 +292,7 @@ body {
     flex-wrap: wrap;
     gap: 0.6rem;
     margin-top: auto;
-    padding-bottom: 1rem;
+    padding-bottom: 1rem; /* Beri jarak bawah */
 }
 
 .participant-tag {
@@ -324,228 +314,20 @@ body {
     box-shadow: 0 2px 4px rgba(var(--color-primary-rgb), 0.2);
 }
 
-/* ====================== */
-/* ADMIN SECTION & FORM STYLES */
-/* ====================== */
-.admin-section {
-    background-color: var(--color-secondary);
-    padding: 2rem 2.5rem;
-    margin-top: 3rem;
-    margin-bottom: 2rem;
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--color-border);
-    box-shadow: var(--shadow-sm);
-}
-
-.admin-section h2 {
-    color: var(--color-primary);
-    margin-bottom: 1.5rem;
-    text-align: center;
-    font-size: 1.8rem;
-    font-weight: 600;
-}
-
-#netlifyIdentityWidget {
-    margin-bottom: 2rem;
-}
-
-.schedule-form {
-    background-color: var(--color-surface);
-    padding: 2rem;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--color-border);
-}
-
-.schedule-form .form-title {
-    margin-bottom: 1.5rem;
-    font-weight: 600;
-    color: var(--color-text);
-    font-size: 1.3rem;
-    border-bottom: 1px solid var(--color-secondary);
-    padding-bottom: 0.8rem;
-    transition: color var(--transition);
-}
-
-.form-group {
-    margin-bottom: 1.3rem;
-}
-
-.form-group:last-of-type {
-    margin-bottom: 1.8rem;
-}
-
-
-.form-group label {
-    display: block;
-    margin-bottom: 0.6rem;
-    font-weight: 500;
+/* Style untuk tag N/A jika peserta kosong */
+.participant-tag.na-tag {
+    background-color: transparent;
     color: var(--color-text-muted);
-    font-size: 0.9rem;
+    font-style: italic;
+    cursor: default;
+    padding-left: 0;
+    padding-right: 0;
 }
-
-.form-group input[type="text"],
-.form-group input[type="date"] {
-    width: 100%;
-    padding: 0.8rem 1rem;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    background-color: var(--color-background);
-    color: var(--color-text);
-    font-size: 0.95rem;
-    font-family: var(--font-primary);
-    transition: var(--transition);
-    outline: none;
-}
-
-.form-group input[type="text"]:focus,
-.form-group input[type="date"]:focus {
-    border-color: var(--color-primary);
-    background-color: var(--color-surface);
-    box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.2);
-}
-
-/* Tombol Submit */
-.btn-submit {
-    background-color: var(--color-primary);
-    color: white;
-    padding: 0.8rem 1.8rem;
-    border: none;
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    font-size: 1rem;
-    font-weight: 600;
-    transition: var(--transition);
-    display: inline-block;
-    text-align: center;
-}
-
-.btn-submit:hover:not(:disabled) {
-    background-color: var(--color-primary-dark);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-sm);
-}
-
-.btn-submit:disabled {
-    background-color: var(--color-text-muted);
-    cursor: not-allowed;
-    opacity: 0.7;
-}
-
-/* Tombol Batal Edit */
-.btn-cancel-edit {
-    background-color: var(--color-text-muted);
-    opacity: 0.8;
-    color: white;
-    padding: 0.8rem 1.5rem;
-    border: none;
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    font-size: 1rem;
-    font-weight: 500;
-    transition: var(--transition);
-    display: inline-block; /* Defaultnya none, diatur JS */
-    margin-left: 0.5rem;
-    vertical-align: middle;
- }
- .btn-cancel-edit:hover:not(:disabled) {
-     opacity: 1;
- }
-  .btn-cancel-edit:disabled {
-      cursor: not-allowed;
-      opacity: 0.5;
-  }
-
-
-/* Styling Form saat Mode Edit */
-.admin-section.editing .form-title {
-     color: var(--color-warning);
-}
- .admin-section.editing .btn-submit {
-     background-color: var(--color-warning-bg);
-     color: var(--color-warning);
-     border: 1px solid var(--color-warning-border);
- }
- .admin-section.editing .btn-submit:hover:not(:disabled) {
-     background-color: #ffe8a1;
-     color: #665100;
-     transform: translateY(-2px);
-     box-shadow: var(--shadow-sm);
- }
-
-
-/* Status Message (Error/Success) */
-.form-status {
-    margin-top: 1.2rem;
-    font-weight: 500;
-    padding: 0.8rem 1rem;
-    border-radius: var(--radius-sm);
-    border: 1px solid transparent;
-    display: none; /* Diatur JS */
-    text-align: center;
-}
-
-.form-status.success {
-    color: var(--color-success);
-    background-color: var(--color-success-bg);
-    border-color: var(--color-success-border);
-}
-
-.form-status.error {
-    color: var(--color-error);
-    background-color: var(--color-error-bg);
-    border-color: var(--color-error-border);
-}
-
-/* Tombol Aksi Admin di Kartu Jadwal */
-.admin-actions {
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--color-secondary);
-    display: flex;
-    gap: 0.6rem;
-    justify-content: flex-end;
-}
-
-.admin-actions button {
-    padding: 0.4rem 0.9rem;
-    border-radius: var(--radius-sm);
-    font-size: 0.85rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: var(--transition);
-    border: 1px solid transparent;
-    line-height: 1.4;
-}
-.admin-actions button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-
-.admin-actions .btn-edit {
-    background-color: var(--color-warning-bg);
-    color: var(--color-warning);
-    border-color: var(--color-warning-border);
-}
-.admin-actions .btn-edit:hover:not(:disabled) {
-    background-color: #ffe8a1;
-    color: #665100;
-}
-
-.admin-actions .btn-delete {
-    background-color: var(--color-error-bg);
-    color: var(--color-error);
-    border-color: var(--color-error-border);
-}
- .admin-actions .btn-delete:hover:not(:disabled) {
-    background-color: #f1c0c5;
-    color: #58151c;
-}
-/* Tambahkan style untuk state disabled/loading pada tombol delete */
-.admin-actions .btn-delete:disabled {
-    background-color: var(--color-text-muted);
-    color: white;
-    border-color: transparent;
+.participant-tag.na-tag:hover {
+    background-color: transparent;
+    color: var(--color-text-muted);
+    transform: none;
+    box-shadow: none;
 }
 
 
@@ -669,7 +451,7 @@ body {
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
 .empty-state i { font-size: 4rem; color: var(--color-accent); margin-bottom: 0.5rem; }
-.empty-state i.error-icon { color: var(--color-error); }
+.empty-state i.error-icon { color: var(--color-error); } /* Untuk pesan error */
 .empty-state h3 { font-size: 1.4rem; color: var(--color-text); font-weight: 600; margin-bottom: 0.3rem; }
 .empty-state p { max-width: 400px; }
 .clickable { cursor: pointer; }
@@ -721,7 +503,6 @@ body {
 @media (max-width: 992px) {
     .search-filter { max-width: 550px; }
     .schedule-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
-    .admin-section { padding: 1.5rem 2rem; }
 }
 @media (max-width: 768px) {
     html { font-size: 15px; }
@@ -733,9 +514,6 @@ body {
     .schedule-grid { gap: 1.2rem; margin-top: 1.5rem; }
     .modal-content { width: 95%; padding: 1.5rem; margin: 2rem auto; }
     .modal-title { font-size: 1.4rem; }
-    .admin-section { margin-top: 2rem; padding: 1.5rem; }
-    .admin-section h2 { font-size: 1.6rem; }
-    .schedule-form { padding: 1.5rem; }
 }
 @media (max-width: 480px) {
     html { font-size: 14px; }
@@ -751,9 +529,4 @@ body {
     .modal-title { font-size: 1.3rem; margin-bottom: 1rem; }
     .theme-toggle { width: 40px; height: 40px; }
     .theme-icon { width: 20px; height: 20px; }
-    .admin-section { padding: 1rem; }
-    .admin-section h2 { font-size: 1.4rem; }
-    .schedule-form { padding: 1rem; }
-    .btn-submit, .btn-cancel-edit { width: 100%; padding: 0.9rem 1rem; margin-left: 0; margin-top: 0.5rem; } /* Tombol full width */
-    .admin-actions button { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
 }

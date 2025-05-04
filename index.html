@@ -11,9 +11,7 @@
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
-    <script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
-
-</head>
+    </head>
 <body>
     <header class="header">
         <div class="header-top container">
@@ -41,37 +39,12 @@
             <div class="spinner"></div>
             <p>Memuat Jadwal...</p>
         </div>
-        <section id="scheduleGrid" class="schedule-grid" aria-live="polite"></section>
-        <div class="empty-state" id="emptyState" style="display: none;"></div>
 
-        <section class="admin-section container" id="adminSection" style="display: none;">
-            <h2>Admin Panel</h2>
-            <div id="netlifyIdentityWidget"></div>
-            <form id="scheduleForm" class="schedule-form" style="margin-top: 2rem;">
-                <h3 id="formTitle" class="form-title">Tambah Jadwal Baru</h3>
-                <input type="hidden" id="scheduleId" name="scheduleId">
-                <div class="form-group">
-                    <label for="formInstitusi">Institusi:</label>
-                    <input type="text" id="formInstitusi" name="institusi" required>
-                </div>
-                <div class="form-group">
-                    <label for="formMataPelajaran">Mata Pelajaran:</label>
-                    <input type="text" id="formMataPelajaran" name="mata_pelajaran" required>
-                </div>
-                <div class="form-group">
-                    <label for="formTanggal">Tanggal (YYYY-MM-DD):</label>
-                    <input type="date" id="formTanggal" name="tanggal" required>
-                </div>
-                <div class="form-group">
-                    <label for="formPeserta">Peserta (pisahkan nama dengan koma):</label>
-                    <input type="text" id="formPeserta" name="peserta" placeholder="Contoh: Budi, Ani, Caca" required>
-                </div>
-                <button type="submit" class="btn-submit" id="scheduleSubmitBtn">Tambah Jadwal</button>
-                <button type="button" class="btn-cancel-edit" id="cancelEditBtn" style="display: none;">Batal Edit</button>
-                <p id="formStatus" class="form-status"></p>
-            </form>
-        </section>
+        <section id="scheduleGrid" class="schedule-grid" aria-live="polite">
+            </section>
 
+        <div class="empty-state" id="emptyState" style="display: none;">
+            </div>
     </main>
 
     <div class="modal" id="genericModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" style="display: none;">
@@ -79,7 +52,8 @@
         <div class="modal-content">
             <button class="close-modal" aria-label="Close modal">&times;</button>
             <h3 id="modalTitle" class="modal-title">Detail Jadwal</h3>
-            <div class="modal-body" id="modalBody"></div>
+            <div class="modal-body" id="modalBody">
+                </div>
         </div>
     </div>
 
