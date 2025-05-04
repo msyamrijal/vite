@@ -14,11 +14,7 @@ const elements = {
     scheduleGrid: document.getElementById('scheduleGrid'),
     loading: document.getElementById('loading'),
     emptyState: document.getElementById('emptyState'),
-    modal: document.getElementById('genericModal'),
-    modalTitle: document.getElementById('modalTitle'),
-    modalBody: document.getElementById('modalBody'),
-    closeModalBtn: document.querySelector('.close-modal'),
-    modalOverlay: document.querySelector('.modal-overlay'),
+    // Hapus elemen modal
     themeToggleBtn: document.getElementById('themeToggle')
 };
 
@@ -54,28 +50,44 @@ const fetchData = async () => {
     showLoading();
     hideEmptyState();
     try {
+        console.log(`Fetching data from ${GET_SCHEDULES_URL}`); // Tetap log ini untuk debug
         const response = await fetch(GET_SCHEDULES_URL);
+        console.log(`Fetch response status: ${response.status}`); // Log status
+
         if (!response.ok) {
             let errorMsg = `HTTP error! status: ${response.status}`;
-            try { const errorData = await response.json(); errorMsg = errorData.error || errorData.message || errorMsg; } catch (e) { /* Abaikan */ }
+            try {
+                const errorData = await response.json();
+                console.error("Error response data:", errorData); // Log error response
+                errorMsg = errorData.error || errorData.message || errorMsg;
+            } catch (e) { /* Abaikan jika bukan JSON */ }
             throw new Error(errorMsg);
         }
+
         const data = await response.json();
+        console.log("Raw data received:", data); // Log data mentah
+
         if (!Array.isArray(data)) {
+             console.error("Data received is not an array!");
              throw new Error("Format data tidak valid.");
         }
+
         const today = new Date(); today.setUTCHours(0, 0, 0, 0);
         allSchedules = data
             .filter(item => item && item.tanggal)
             .map(item => ({
                 ...item,
+                // Pastikan peserta adalah array
                 peserta: Array.isArray(item.peserta) ? item.peserta : [],
-                TanggalDate: new Date(item.tanggal + 'T00:00:00Z')
+                TanggalDate: item.tanggal ? new Date(item.tanggal + 'T00:00:00Z') : null
              }))
             .filter(item => item.TanggalDate && !isNaN(item.TanggalDate.getTime()) && item.TanggalDate >= today)
             .sort((a, b) => a.TanggalDate - b.TanggalDate);
+
+        console.log("Processed schedules:", allSchedules); // Log data yang diproses
+
         initFilters();
-        filterSchedules();
+        filterSchedules(); // Render data
     } catch (error) {
         console.error('Fetch Error:', error);
         showError(`Gagal memuat data jadwal: ${error.message}`);
@@ -146,98 +158,34 @@ const renderSchedules = (data) => {
 const createScheduleCard = (item) => {
     const card = document.createElement('article');
     card.className = 'schedule-card';
-    let pesertaHtml = '<span class="participant-tag na-tag">N/A</span>';
+
+    // Logika render peserta yang fokus pada tampilan
+    let pesertaHtml = '<span class="participant-tag na-tag">N/A</span>'; // Default
     if (Array.isArray(item.peserta) && item.peserta.length > 0) {
         pesertaHtml = item.peserta.map(peserta => {
-            const pesertaText = typeof peserta === 'string' ? peserta : 'Invalid Data';
-            return `<span class="participant-tag clickable" data-entity="Peserta" title="Lihat semua jadwal ${pesertaText}">${pesertaText}</span>`;
-        }).join('');
+            // Pastikan peserta adalah string sebelum dirender
+            const pesertaText = typeof peserta === 'string' ? peserta.trim() : 'Data tidak valid';
+             // Hanya render jika pesertaText tidak kosong setelah trim
+            return pesertaText ? `<span class="participant-tag">${pesertaText}</span>` : '';
+        }).filter(tag => tag).join(''); // Filter tag kosong dan gabungkan
+
+        // Jika setelah filter hasilnya kosong (misal semua peserta string kosong), tampilkan N/A
+        if (!pesertaHtml) {
+             pesertaHtml = '<span class="participant-tag na-tag">N/A</span>';
+        }
     }
+
     card.innerHTML = `
         <div class="card-header">
-            <h3 class="course-title clickable" data-entity="Mata_Pelajaran" title="Lihat semua jadwal ${item.mata_pelajaran}">${item.mata_pelajaran || 'N/A'}</h3>
-            <span class="date-display clickable" data-entity="Tanggal" title="Lihat semua jadwal pada ${formatDate(item.tanggal)}">${formatDate(item.tanggal)}</span>
+            <h3 class="course-title">${item.mata_pelajaran || 'N/A'}</h3>
+            <span class="date-display">${formatDate(item.tanggal)}</span>
         </div>
-        <div class="institute clickable" data-entity="Institusi" title="Lihat semua jadwal dari ${item.institusi}">${item.institusi || 'N/A'}</div>
+        <div class="institute">${item.institusi || 'N/A'}</div>
         <div class="participants">
-            ${pesertaHtml}
+            ${pesertaHtml} {/* Gunakan HTML yang sudah diproses */}
         </div>
         `;
     return card;
-};
-
-// ======================
-// MODAL DETAIL
-// ======================
-const showGenericModal = (title, data) => {
-    if (!elements.modal) return;
-    elements.modalTitle.textContent = title;
-    elements.modalBody.innerHTML = generateModalContent(data);
-    elements.modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
-};
-
-const hideModal = () => {
-    if (!elements.modal) return;
-    elements.modal.style.display = 'none';
-    document.body.style.overflow = '';
-};
-
-const generateModalContent = (data) => {
-    if (!data || data.length === 0) {
-        return '<p class="no-data">Tidak ada data jadwal terkait yang ditemukan.</p>';
-    }
-    return data.map(item => {
-        let pesertaHtmlModal = '<span class="participant-tag na-tag">N/A</span>';
-        if (Array.isArray(item.peserta) && item.peserta.length > 0) {
-             pesertaHtmlModal = item.peserta.map(p => `<span class="participant-tag">${typeof p === 'string' ? p : 'Invalid'}</span>`).join('');
-        }
-        return `
-            <div class="modal-item">
-                <div class="card-header"><h4 class="course-title">${item.mata_pelajaran || 'N/A'}</h4></div>
-                 <div class="modal-meta">
-                    <span class="institute">${item.institusi || 'N/A'}</span>
-                    <span class="date-display">${formatDate(item.tanggal)}</span>
-                </div>
-                <div class="participants">${pesertaHtmlModal}</div>
-            </div>
-        `;
-        }).join('');
-};
-
-// ======================
-// EVENT HANDLER KLIK ENTITAS
-// ======================
-const handleEntityClick = (element) => {
-    const entityType = element.dataset.entity;
-    const value = element.textContent.trim();
-    let filterProperty = entityType;
-    let modalTitlePrefix = '';
-    if (entityType === 'Mata_Pelajaran') filterProperty = 'mata_pelajaran';
-    if (entityType === 'Institusi') filterProperty = 'institusi';
-
-    let filteredData;
-    if (entityType === 'Peserta') {
-        filteredData = allSchedules.filter(item => Array.isArray(item.peserta) && item.peserta.includes(value));
-        modalTitlePrefix = `Jadwal untuk ${value}`;
-    } else if (entityType === 'Tanggal') {
-        const clickedDate = new Date(value + 'T00:00:00Z');
-         if (!isNaN(clickedDate.getTime())) {
-             filteredData = allSchedules.filter(item =>
-                 item.TanggalDate.getUTCFullYear() === clickedDate.getUTCFullYear() &&
-                 item.TanggalDate.getUTCMonth() === clickedDate.getUTCMonth() &&
-                 item.TanggalDate.getUTCDate() === clickedDate.getUTCDate()
-             );
-         } else { filteredData = []; }
-         modalTitlePrefix = `Jadwal pada ${formatDate(value)}`;
-    } else {
-        filteredData = allSchedules.filter(item => item[filterProperty] === value);
-        modalTitlePrefix = `Jadwal ${value}`;
-    }
-
-    const today = new Date(); today.setUTCHours(0, 0, 0, 0);
-    const futureFilteredData = filteredData.filter(item => item.TanggalDate >= today);
-    showGenericModal(modalTitlePrefix, futureFilteredData);
 };
 
 // ======================
@@ -259,18 +207,9 @@ const showError = (message = 'Terjadi kesalahan.') => { hideLoading(); if(elemen
 function debounce(func, wait) { let timeout; return function executedFunction(...args) { const later = () => { clearTimeout(timeout); func(...args); }; clearTimeout(timeout); timeout = setTimeout(later, wait); }; }
 
 // ======================
-// EVENT LISTENERS DINAMIS (Delegation)
+// EVENT LISTENERS
 // ======================
-const attachDynamicListeners = () => {
-    document.body.addEventListener('click', (e) => {
-        const target = e.target;
-        // Klik pada entitas di kartu jadwal
-        if (target.classList.contains('clickable') && target.dataset.entity) { handleEntityClick(target); }
-        // Klik tombol close modal atau overlay
-        if (target === elements.modalOverlay || target.closest('.close-modal')) { hideModal(); }
-        // Listener untuk edit/delete dihapus
-    });
-};
+// Listener dinamis dihapus karena tidak ada elemen clickable di kartu lagi
 
 // ======================
 // INISIALISASI UTAMA APLIKASI
@@ -279,14 +218,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!elements.scheduleGrid || !elements.loading || !elements.emptyState) { console.error("Initialization failed: Essential elements missing."); return; }
 
     initTheme();
-    // initNetlifyIdentity dihapus
     fetchData(); // Langsung fetch data
-    attachDynamicListeners();
 
     // Listener statis
     elements.themeToggleBtn?.addEventListener('click', toggleTheme);
-    // Listener untuk form admin dihapus
-
-    // Listener Escape untuk modal
-     window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && elements.modal?.style.display === 'block') { hideModal(); } });
+    // Listener filter sudah dipasang di initFilters
 });

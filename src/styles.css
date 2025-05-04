@@ -16,7 +16,6 @@
     --color-error: #721c24;
     --color-error-bg: #f8d7da;
     --color-error-border: #f5c6cb;
-    /* Hapus variabel warna lain jika tidak dipakai */
 
     --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
     --shadow-md: 0 4px 10px rgba(0,0,0,0.1);
@@ -43,7 +42,6 @@
     --color-error: #f5c6cb;
     --color-error-bg: #721c24;
     --color-error-border: #f5c6cb;
-    /* Hapus variabel warna lain jika tidak dipakai */
 
     --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
     --shadow-md: 0 4px 10px rgba(0,0,0,0.4);
@@ -247,15 +245,15 @@ body {
     color: var(--color-primary);
     font-size: 1.3rem;
     font-weight: 600;
-    cursor: pointer;
+    /* cursor: pointer; Dihapus karena modal dihapus */
     transition: color var(--transition);
     line-height: 1.4;
     margin-right: 0.5rem;
 }
 
-.course-title:hover {
+/* .course-title:hover {
     color: var(--color-primary-dark);
-}
+} */
 
 .date-display {
     background-color: rgba(var(--color-accent-rgb), 0.15);
@@ -264,35 +262,35 @@ body {
     border-radius: var(--radius-sm);
     font-size: 0.85rem;
     font-weight: 500;
-    cursor: pointer;
+    /* cursor: pointer; Dihapus */
     white-space: nowrap;
     flex-shrink: 0;
     transition: background-color var(--transition), color var(--transition);
 }
 
-.date-display:hover {
+/* .date-display:hover {
      background-color: rgba(var(--color-accent-rgb), 0.3);
-}
+} */
 
 .institute {
     color: var(--color-text-muted);
     font-weight: 500;
     font-size: 0.95rem;
     margin-bottom: 1.2rem;
-    cursor: pointer;
+    /* cursor: pointer; Dihapus */
     transition: color var(--transition);
 }
 
-.institute:hover {
+/* .institute:hover {
     color: var(--color-primary);
-}
+} */
 
 .participants {
     display: flex;
     flex-wrap: wrap;
     gap: 0.6rem;
     margin-top: auto;
-    padding-bottom: 1rem; /* Beri jarak bawah */
+    padding-bottom: 1rem;
 }
 
 .participant-tag {
@@ -302,19 +300,18 @@ body {
     border-radius: var(--radius-lg);
     font-size: 0.85rem;
     font-weight: 500;
-    cursor: pointer;
+    /* cursor: pointer; Dihapus */
     transition: var(--transition);
     border: 1px solid transparent;
 }
 
-.participant-tag:hover {
+/* .participant-tag:hover {
     background-color: var(--color-primary);
     color: var(--color-surface);
     transform: translateY(-2px);
     box-shadow: 0 2px 4px rgba(var(--color-primary-rgb), 0.2);
-}
+} */
 
-/* Style untuk tag N/A jika peserta kosong */
 .participant-tag.na-tag {
     background-color: transparent;
     color: var(--color-text-muted);
@@ -332,97 +329,9 @@ body {
 
 
 /* ====================== */
-/* MODAL STYLES */
+/* MODAL STYLES (Dihapus) */
 /* ====================== */
-.modal {
-    display: none;
-    position: fixed;
-    inset: 0;
-    z-index: 2000;
-    overflow-y: auto;
-}
 
-.modal-overlay {
-    position: fixed;
-    inset: 0;
-    background-color: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-    animation: fadeIn 0.3s ease forwards;
-}
-
-.modal-content {
-    position: relative;
-    background-color: var(--color-surface);
-    width: 90%;
-    max-width: 650px;
-    margin: 3rem auto;
-    padding: 2rem 2.5rem;
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md);
-    animation: slideInUp 0.4s ease forwards;
-    z-index: 2001;
-}
-
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes slideInUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
-.modal-title {
-    font-size: 1.6rem;
-    font-weight: 600;
-    color: var(--color-primary);
-    margin-bottom: 1.5rem;
-    padding-right: 2rem;
-}
-
-.modal-body {
-    max-height: 70vh;
-    overflow-y: auto;
-    padding-right: 0.5rem;
-    margin-right: -0.5rem;
-}
-
-.modal-item {
-    background-color: var(--color-background);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 1.5rem;
-    margin-bottom: 1.2rem;
-    transition: border-color var(--transition);
-}
-.modal-item:last-child { margin-bottom: 0; }
-.modal-item .card-header { margin-bottom: 0.5rem; }
-.modal-item .course-title { font-size: 1.2rem; cursor: default; }
-.modal-item .course-title:hover { color: var(--color-primary); }
-.modal-meta { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: 0.8rem; margin-bottom: 1rem; font-size: 0.9rem; }
-.modal-meta .institute { margin: 0; cursor: default; }
-.modal-meta .institute:hover { color: var(--color-text-muted); }
-.modal-meta .date-display { font-size: 0.8rem; padding: 0.3rem 0.6rem; cursor: default; }
-.modal-meta .date-display:hover { background-color: rgba(var(--color-accent-rgb), 0.15); }
-.modal-item .participants { border-top: none; padding-top: 0; padding-bottom: 0; }
-.modal-item .participant-tag { cursor: default; }
-.modal-item .participant-tag:hover { background-color: var(--color-secondary); color: var(--color-text-muted); transform: none; box-shadow: none; }
-
-.close-modal {
-    position: absolute;
-    right: 1.5rem;
-    top: 1.5rem;
-    font-size: 2rem;
-    font-weight: 300;
-    line-height: 1;
-    cursor: pointer;
-    color: var(--color-text-muted);
-    background: none;
-    border: none;
-    padding: 0.2rem;
-    transition: var(--transition);
-}
-.close-modal:hover { color: var(--color-primary); transform: rotate(90deg); }
-
-/* Scrollbar styling (optional, webkit only) */
-.modal-body::-webkit-scrollbar { width: 8px; }
-.modal-body::-webkit-scrollbar-track { background: var(--color-secondary); border-radius: 4px; }
-.modal-body::-webkit-scrollbar-thumb { background: var(--color-accent); border-radius: 4px; }
-.modal-body::-webkit-scrollbar-thumb:hover { background: var(--color-primary); }
 
 /* ====================== */
 /* UTILITY STYLES */
@@ -451,10 +360,10 @@ body {
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
 .empty-state i { font-size: 4rem; color: var(--color-accent); margin-bottom: 0.5rem; }
-.empty-state i.error-icon { color: var(--color-error); } /* Untuk pesan error */
+.empty-state i.error-icon { color: var(--color-error); }
 .empty-state h3 { font-size: 1.4rem; color: var(--color-text); font-weight: 600; margin-bottom: 0.3rem; }
 .empty-state p { max-width: 400px; }
-.clickable { cursor: pointer; }
+.clickable { cursor: pointer; } /* Mungkin tidak terpakai lagi */
 .no-data { padding: 2rem; text-align: center; color: var(--color-text-muted); }
 
 /* ====================== */
@@ -483,7 +392,7 @@ body {
     display: block;
     width: 22px;
     height: 22px;
-    background-color: var(--color-primary); /* Warna ikon diatur di sini */
+    background-color: var(--color-primary);
     mask-size: contain;
     mask-repeat: no-repeat;
     mask-position: center;
@@ -512,8 +421,6 @@ body {
     .search-filter { grid-row: 2 / 3; grid-column: 1 / 3; flex-direction: column; max-width: none; gap: 0.8rem; }
     .institution-filter { width: 100%; }
     .schedule-grid { gap: 1.2rem; margin-top: 1.5rem; }
-    .modal-content { width: 95%; padding: 1.5rem; margin: 2rem auto; }
-    .modal-title { font-size: 1.4rem; }
 }
 @media (max-width: 480px) {
     html { font-size: 14px; }
@@ -524,9 +431,6 @@ body {
     .course-title { font-size: 1.15rem; }
     .date-display { font-size: 0.8rem; padding: 0.3rem 0.6rem; }
     .participant-tag { font-size: 0.8rem; padding: 0.25rem 0.7rem; }
-    .modal-meta { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
-    .modal-content { padding: 1.2rem 1rem; }
-    .modal-title { font-size: 1.3rem; margin-bottom: 1rem; }
     .theme-toggle { width: 40px; height: 40px; }
     .theme-icon { width: 20px; height: 20px; }
 }

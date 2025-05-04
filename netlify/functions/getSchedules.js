@@ -2,7 +2,6 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Ambil Supabase URL dan Anon Key dari Netlify Environment Variables
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY; // Gunakan Anon Key
 
@@ -10,10 +9,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
     console.error("FATAL: Supabase URL or Anon Key environment variable is missing.");
 }
 
-// Inisialisasi Supabase Client di luar handler
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Fungsi handler utama Netlify Function
 exports.handler = async (event, context) => {
 
     if (!supabaseUrl || !supabaseAnonKey) {
@@ -21,12 +18,12 @@ exports.handler = async (event, context) => {
     }
 
     try {
+        console.log("[getSchedules] Attempting to fetch schedules from Supabase...");
         const tableName = 'schedules'; // Pastikan nama tabel benar
 
-        // Ambil data dari Supabase
         let { data: schedules, error } = await supabase
             .from(tableName)
-            .select('id, institusi, mata_pelajaran, tanggal, peserta') // Pilih kolom yang dibutuhkan
+            .select('id, institusi, mata_pelajaran, tanggal, peserta') // Pastikan 'peserta' ada
             .order('tanggal', { ascending: true });
 
         if (error) {
@@ -34,7 +31,11 @@ exports.handler = async (event, context) => {
             return { statusCode: 500, body: JSON.stringify({ error: 'Failed to retrieve schedule data.' }) };
         }
 
-        // Kembalikan data
+        console.log(`[getSchedules] Successfully fetched ${schedules ? schedules.length : 0} schedules.`);
+        if (schedules && schedules.length > 0) {
+            console.log("[getSchedules] Sample data:", JSON.stringify(schedules[0]));
+        }
+
         return {
             statusCode: 200,
             body: JSON.stringify(schedules || []),
