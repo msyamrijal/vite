@@ -1,16 +1,12 @@
-// Import CSS
-// PERUBAHAN DI SINI: Path relatif dari src/main.js ke src/styles.css
 import './styles.css';
 
-// ======================
-// KONFIGURASI & SELEKTOR DOM (Kode sama seperti sebelumnya)
-// ======================
 const API_BASE_URL = '/api';
 const GET_SCHEDULES_URL = `${API_BASE_URL}/getSchedules`;
 const CREATE_SCHEDULE_URL = `${API_BASE_URL}/createSchedule`;
 const UPDATE_SCHEDULE_URL = `${API_BASE_URL}/updateSchedule`;
 const DELETE_SCHEDULE_URL = `${API_BASE_URL}/deleteSchedule`;
-const elements = { /* ... selektor sama ... */
+
+const elements = {
     searchInput: document.getElementById('searchInput'),
     institutionFilter: document.getElementById('institutionFilter'),
     scheduleGrid: document.getElementById('scheduleGrid'),
@@ -23,7 +19,8 @@ const elements = { /* ... selektor sama ... */
     modalOverlay: document.querySelector('.modal-overlay'),
     themeToggleBtn: document.getElementById('themeToggle')
 };
-const adminElements = { /* ... selektor sama ... */
+
+const adminElements = {
     adminSection: document.getElementById('adminSection'),
     netlifyIdentityWidgetContainer: document.getElementById('netlifyIdentityWidget'),
     scheduleForm: document.getElementById('scheduleForm'),
@@ -37,84 +34,406 @@ const adminElements = { /* ... selektor sama ... */
     cancelEditButton: document.getElementById('cancelEditBtn'),
     formStatus: document.getElementById('formStatus'),
 };
+
 let allSchedules = [];
 let currentUser = null;
 let isEditMode = false;
 
-// ======================
-// MANAJEMEN TEMA (Kode sama)
-// ======================
-const initTheme = () => { /* ... kode sama ... */ };
-const toggleTheme = () => { /* ... kode sama ... */ };
-const updateThemeIcon = (theme) => { /* ... kode sama ... */ };
+const initTheme = () => {
+    const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateThemeIcon(savedTheme);
+};
 
-// ======================
-// MANAJEMEN DATA (Fetch) (Kode sama)
-// ======================
-const fetchData = async () => { /* ... kode sama ... */ };
+const toggleTheme = () => {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeIcon(newTheme);
+};
 
-// ======================
-// SISTEM FILTER (Kode sama)
-// ======================
-const initFilters = () => { /* ... kode sama ... */ };
-const filterSchedules = () => { /* ... kode sama ... */ };
+const updateThemeIcon = (theme) => {
+    const themeIcon = elements.themeToggleBtn?.querySelector('.theme-icon');
+    if (themeIcon) {
+        // Example: themeIcon.classList.toggle('dark-mode-icon', theme === 'dark');
+    }
+};
 
-// ======================
-// RENDERING JADWAL (Kode sama)
-// ======================
-const renderSchedules = (data) => { /* ... kode sama ... */ };
-const createScheduleCard = (item) => { /* ... kode sama ... */ };
+const fetchData = async () => {
+    showLoading();
+    hideEmptyState();
+    try {
+        const response = await fetch(GET_SCHEDULES_URL);
+        if (!response.ok) {
+            let errorMsg = `HTTP error! status: ${response.status}`;
+            try { const errorData = await response.json(); errorMsg = errorData.error || errorData.message || errorMsg; } catch (e) { /* Ignore */ }
+            throw new Error(errorMsg);
+        }
+        const data = await response.json();
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        allSchedules = data
+            .map(item => ({ ...item, TanggalDate: new Date(item.tanggal + 'T00:00:00Z') }))
+            .filter(item => item.TanggalDate >= today)
+            .sort((a, b) => a.TanggalDate - b.TanggalDate);
+        initFilters();
+        filterSchedules();
+    } catch (error) {
+        console.error('Fetch Error:', error);
+        showError(`Gagal memuat data jadwal: ${error.message}`);
+        allSchedules = [];
+        renderSchedules([]);
+    } finally {
+        hideLoading();
+    }
+};
 
-// ======================
-// MODAL DETAIL (Kode sama)
-// ======================
-const showGenericModal = (title, data) => { /* ... kode sama ... */ };
-const hideModal = () => { /* ... kode sama ... */ };
-const generateModalContent = (data) => { /* ... kode sama ... */ };
+const initFilters = () => {
+    if (!elements.institutionFilter) return;
+    const institutions = [...new Set(allSchedules.map(item => item.institusi))].sort((a, b) => a.localeCompare(b));
+    const filterSelect = elements.institutionFilter;
+    const currentFilterValue = filterSelect.value;
+    filterSelect.length = 1;
+    institutions.forEach(inst => {
+        const option = document.createElement('option');
+        option.value = inst;
+        option.textContent = inst;
+        filterSelect.appendChild(option);
+     });
+    if (institutions.includes(currentFilterValue)) { filterSelect.value = currentFilterValue; }
+    if (!filterSelect.dataset.listenerAttached) {
+        elements.searchInput?.addEventListener('input', debounce(filterSchedules, 300));
+        filterSelect.addEventListener('change', filterSchedules);
+        filterSelect.dataset.listenerAttached = 'true';
+     }
+};
 
-// ======================
-// EVENT HANDLER KLIK ENTITAS (Kode sama)
-// ======================
-const handleEntityClick = (element) => { /* ... kode sama ... */ };
+const filterSchedules = () => {
+    const searchTerm = elements.searchInput?.value.toLowerCase().trim() || '';
+    const selectedInstitution = elements.institutionFilter?.value || 'all';
+    const filtered = allSchedules.filter(item => {
+        const pesertaText = Array.isArray(item.peserta) ? item.peserta.join(' ') : '';
+        const searchableText = [item.institusi, item.mata_pelajaran, pesertaText].join(' ').toLowerCase();
+        const matchesSearch = searchTerm === '' || searchableText.includes(searchTerm);
+        const matchesInstitution = selectedInstitution === 'all' || item.institusi === selectedInstitution;
+        return matchesSearch && matchesInstitution;
+     });
+    renderSchedules(filtered);
+};
 
-// ======================
-// FUNGSI ADMIN: KELOLA FORM (Tambah/Edit) (Kode sama)
-// ======================
-const setupEditForm = (scheduleId) => { /* ... kode sama ... */ };
-const resetToAddMode = () => { /* ... kode sama ... */ };
-const handleCancelEdit = () => { /* ... kode sama ... */ };
-const handleScheduleFormSubmit = async (event) => { /* ... kode sama ... */ };
-const setFormSubmitting = (isSubmitting) => { /* ... kode sama ... */ };
-const showFormStatus = (message, isError) => { /* ... kode sama ... */ };
+const renderSchedules = (data) => {
+    if (!elements.scheduleGrid) return;
+    elements.scheduleGrid.innerHTML = '';
+    if (data.length === 0) {
+        if (!elements.loading || elements.loading.style.display === 'none') {
+             showEmptyState("Tidak ada jadwal yang cocok dengan filter Anda.");
+        }
+        return;
+    }
+    hideEmptyState();
+    const fragment = document.createDocumentFragment();
+    data.forEach(item => {
+        const card = createScheduleCard(item);
+        fragment.appendChild(card);
+    });
+    elements.scheduleGrid.appendChild(fragment);
+};
 
-// ======================
-// FUNGSI ADMIN: HAPUS JADWAL (Kode sama)
-// ======================
-const handleDeleteClick = async (scheduleIdStr) => { /* ... kode sama ... */ };
+const createScheduleCard = (item) => {
+    const card = document.createElement('article');
+    card.className = 'schedule-card';
+    card.innerHTML = `
+        <div class="card-header">
+            <h3 class="course-title clickable" data-entity="Mata_Pelajaran" title="Lihat semua jadwal ${item.mata_pelajaran}">${item.mata_pelajaran}</h3>
+            <span class="date-display clickable" data-entity="Tanggal" title="Lihat semua jadwal pada ${formatDate(item.tanggal)}">${formatDate(item.tanggal)}</span>
+        </div>
+        <div class="institute clickable" data-entity="Institusi" title="Lihat semua jadwal dari ${item.institusi}">${item.institusi}</div>
+        <div class="participants">
+            ${Array.isArray(item.peserta) ? item.peserta.map(peserta => `
+                <span class="participant-tag clickable" data-entity="Peserta" title="Lihat semua jadwal ${peserta}">${peserta}</span>
+            `).join('') : '<span class="participant-tag">N/A</span>'}
+        </div>
+        ${currentUser ? `
+            <div class="admin-actions">
+                <button class="btn-edit" data-id="${item.id}" title="Edit Jadwal Ini">Edit</button>
+                <button class="btn-delete" data-id="${item.id}" title="Hapus Jadwal Ini">Hapus</button>
+            </div>
+        ` : ''}
+    `;
+    return card;
+};
 
-// ======================
-// AUTENTIKASI (Netlify Identity) (Kode sama)
-// ======================
-const setupAdminFeatures = (user) => { /* ... kode sama ... */ };
-const initNetlifyIdentity = () => { /* ... kode sama ... */ };
+const showGenericModal = (title, data) => {
+    if (!elements.modal) return;
+    elements.modalTitle.textContent = title;
+    elements.modalBody.innerHTML = generateModalContent(data);
+    elements.modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+};
 
-// ======================
-// UTILITIES (Kode sama)
-// ======================
-const formatDate = (dateString) => { /* ... kode sama ... */ };
-const showLoading = () => { /* ... kode sama ... */ };
-const hideLoading = () => { /* ... kode sama ... */ };
-const showEmptyState = (message = "Tidak ada jadwal yang ditemukan.") => { /* ... kode sama ... */ };
-const hideEmptyState = () => { /* ... kode sama ... */ };
-const showError = (message = 'Terjadi kesalahan.') => { /* ... kode sama ... */ };
-function debounce(func, wait) { /* ... kode sama ... */ }
+const hideModal = () => {
+    if (!elements.modal) return;
+    elements.modal.style.display = 'none';
+    document.body.style.overflow = '';
+};
 
-// ======================
-// EVENT LISTENERS DINAMIS (Delegation) (Kode sama)
-// ======================
-const attachDynamicListeners = () => { /* ... kode sama ... */ };
+const generateModalContent = (data) => {
+    if (!data || data.length === 0) {
+        return '<p class="no-data">Tidak ada data jadwal terkait yang ditemukan.</p>';
+    }
+    return data.map(item => `
+        <div class="modal-item">
+            <div class="card-header"><h4 class="course-title">${item.mata_pelajaran}</h4></div>
+             <div class="modal-meta">
+                <span class="institute">${item.institusi}</span>
+                <span class="date-display">${formatDate(item.tanggal)}</span>
+            </div>
+            <div class="participants">${Array.isArray(item.peserta) ? item.peserta.map(p => `<span class="participant-tag">${p}</span>`).join('') : 'N/A'}</div>
+        </div>
+    `).join('');
+};
 
-// ======================
-// INISIALISASI UTAMA APLIKASI (Kode sama)
-// ======================
-document.addEventListener('DOMContentLoaded', () => { /* ... kode sama ... */ });
+const handleEntityClick = (element) => {
+    const entityType = element.dataset.entity;
+    const value = element.textContent.trim();
+    let filterProperty = entityType;
+    let modalTitlePrefix = '';
+    if (entityType === 'Mata_Pelajaran') filterProperty = 'mata_pelajaran';
+    if (entityType === 'Institusi') filterProperty = 'institusi';
+
+    let filteredData;
+    if (entityType === 'Peserta') {
+        filteredData = allSchedules.filter(item => Array.isArray(item.peserta) && item.peserta.includes(value));
+        modalTitlePrefix = `Jadwal untuk ${value}`;
+    } else if (entityType === 'Tanggal') {
+        const clickedDate = new Date(value + 'T00:00:00Z');
+         if (!isNaN(clickedDate.getTime())) {
+             filteredData = allSchedules.filter(item =>
+                 item.TanggalDate.getUTCFullYear() === clickedDate.getUTCFullYear() &&
+                 item.TanggalDate.getUTCMonth() === clickedDate.getUTCMonth() &&
+                 item.TanggalDate.getUTCDate() === clickedDate.getUTCDate()
+             );
+         } else { filteredData = []; }
+         modalTitlePrefix = `Jadwal pada ${formatDate(value)}`;
+    } else {
+        filteredData = allSchedules.filter(item => item[filterProperty] === value);
+        modalTitlePrefix = `Jadwal ${value}`;
+    }
+
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const futureFilteredData = filteredData.filter(item => item.TanggalDate >= today);
+    showGenericModal(modalTitlePrefix, futureFilteredData);
+};
+
+const setupEditForm = (scheduleId) => {
+    const schedule = allSchedules.find(s => s.id === scheduleId);
+    if (!schedule || !adminElements.scheduleForm) {
+        console.error(`Schedule with ID ${scheduleId} not found for editing or form element missing.`);
+        showFormStatus("Error: Jadwal tidak ditemukan untuk diedit.", true);
+        return;
+    }
+    isEditMode = true;
+    adminElements.scheduleIdInput.value = schedule.id;
+    adminElements.formTitle.textContent = "Edit Jadwal";
+    adminElements.formInstitusiInput.value = schedule.institusi;
+    adminElements.formMataPelajaranInput.value = schedule.mata_pelajaran;
+    adminElements.formTanggalInput.value = schedule.tanggal;
+    adminElements.formPesertaInput.value = Array.isArray(schedule.peserta) ? schedule.peserta.join(', ') : '';
+    adminElements.scheduleSubmitButton.textContent = "Update Jadwal";
+    adminElements.cancelEditButton.style.display = 'inline-block';
+    adminElements.adminSection?.classList.add('editing');
+    adminElements.scheduleForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    adminElements.formInstitusiInput.focus();
+};
+
+const resetToAddMode = () => {
+    isEditMode = false;
+    adminElements.scheduleForm?.reset();
+    if(adminElements.scheduleIdInput) adminElements.scheduleIdInput.value = '';
+    if(adminElements.formTitle) adminElements.formTitle.textContent = "Tambah Jadwal Baru";
+    if(adminElements.scheduleSubmitButton) adminElements.scheduleSubmitButton.textContent = "Tambah Jadwal";
+    if(adminElements.cancelEditButton) adminElements.cancelEditButton.style.display = 'none';
+    adminElements.adminSection?.classList.remove('editing');
+    showFormStatus("", false);
+};
+
+const handleCancelEdit = () => {
+    resetToAddMode();
+};
+
+const handleScheduleFormSubmit = async (event) => {
+    event.preventDefault();
+    const submitButton = adminElements.scheduleSubmitButton;
+    if (!submitButton || submitButton.disabled) return;
+    const user = netlifyIdentity.currentUser();
+    if (!user) { showFormStatus("Error: Anda harus login.", true); return; }
+    const token = user.token?.access_token;
+    if (!token) { showFormStatus("Error: Gagal mendapatkan token autentikasi.", true); return; }
+
+    const scheduleId = adminElements.scheduleIdInput.value;
+    const institusi = adminElements.formInstitusiInput.value.trim();
+    const mata_pelajaran = adminElements.formMataPelajaranInput.value.trim();
+    const tanggal = adminElements.formTanggalInput.value;
+    const pesertaInput = adminElements.formPesertaInput.value.trim();
+    if (!institusi || !mata_pelajaran || !tanggal || !pesertaInput) { showFormStatus("Error: Semua field wajib diisi.", true); return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(tanggal)) { showFormStatus("Error: Format tanggal tidak valid (YYYY-MM-DD).", true); return; }
+    const inputDate = new Date(tanggal + 'T00:00:00Z');
+    const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+    if (inputDate < today && !isEditMode) { showFormStatus("Error: Tanggal tidak boleh di masa lalu.", true); return; }
+    const peserta = pesertaInput.split(',').map(p => p.trim()).filter(p => p);
+    if (peserta.length === 0) { showFormStatus("Error: Field peserta tidak boleh kosong.", true); return; }
+
+    const scheduleData = { institusi, mata_pelajaran, tanggal, peserta };
+    let apiUrl, method, requestBody;
+    if (isEditMode) {
+        const idNum = parseInt(scheduleId, 10);
+        if(isNaN(idNum)) { showFormStatus("Error: ID Jadwal tidak valid untuk update.", true); return; }
+        apiUrl = UPDATE_SCHEDULE_URL; method = 'PUT';
+        requestBody = JSON.stringify({ id: idNum, data: scheduleData });
+    } else {
+        apiUrl = CREATE_SCHEDULE_URL; method = 'POST';
+        requestBody = JSON.stringify(scheduleData);
+    }
+
+    setFormSubmitting(true);
+    try {
+        const response = await fetch(apiUrl, {
+            method: method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: requestBody
+        });
+        const responseData = await response.json();
+        if (!response.ok) {
+            const errorMsg = responseData.error || responseData.message || `Gagal ${isEditMode ? 'update' : 'simpan'}: Status ${response.status}`;
+            throw new Error(errorMsg);
+        }
+        showFormStatus(`Jadwal berhasil ${isEditMode ? 'diupdate' : 'ditambahkan'}!`, false);
+        resetToAddMode();
+        await fetchData();
+        setTimeout(() => showFormStatus("", false), 4000);
+    } catch (error) {
+        console.error(`Error ${isEditMode ? 'updating' : 'creating'} schedule:`, error);
+        showFormStatus(`Error: ${error.message}`, true);
+    } finally {
+        setFormSubmitting(false);
+    }
+};
+
+const setFormSubmitting = (isSubmitting) => {
+    if (adminElements.scheduleSubmitButton) {
+        adminElements.scheduleSubmitButton.disabled = isSubmitting;
+        adminElements.scheduleSubmitButton.textContent = isSubmitting ? 'Memproses...' : (isEditMode ? 'Update Jadwal' : 'Tambah Jadwal');
+     }
+    if (adminElements.cancelEditButton) { adminElements.cancelEditButton.disabled = isSubmitting; }
+    showFormStatus(isSubmitting ? `Memproses permintaan ${isEditMode ? 'update' : 'tambah'}...` : "", false);
+};
+
+const showFormStatus = (message, isError) => {
+    if (adminElements.formStatus) {
+        adminElements.formStatus.textContent = message;
+        adminElements.formStatus.className = `form-status ${isError ? 'error' : 'success'}`;
+        adminElements.formStatus.style.display = message ? 'block' : 'none';
+     }
+};
+
+const handleDeleteClick = async (scheduleIdStr) => {
+    const scheduleId = parseInt(scheduleIdStr, 10);
+    if (isNaN(scheduleId)) { showError("Gagal menghapus: ID jadwal tidak valid."); return; }
+
+    const scheduleToDelete = allSchedules.find(s => s.id === scheduleId);
+    if (!scheduleToDelete) { showError("Gagal menghapus: Jadwal tidak ditemukan lagi."); return; }
+    const confirmationMessage = `Anda yakin ingin menghapus jadwal berikut?\n\nInstitusi: ${scheduleToDelete.institusi}\nMata Kuliah: ${scheduleToDelete.mata_pelajaran}\nTanggal: ${formatDate(scheduleToDelete.tanggal)}`;
+    if (!confirm(confirmationMessage)) { return; }
+
+    const user = netlifyIdentity.currentUser();
+    if (!user) { showError("Error: Anda harus login untuk menghapus jadwal."); return; }
+    const token = user.token?.access_token;
+    if (!token) { showError("Error: Gagal mendapatkan token autentikasi."); return; }
+
+    const deleteButton = document.querySelector(`.btn-delete[data-id="${scheduleId}"]`);
+    const originalButtonText = deleteButton ? deleteButton.textContent : 'Hapus';
+    if(deleteButton) { deleteButton.disabled = true; deleteButton.textContent = 'Menghapus...'; }
+
+    try {
+        const response = await fetch(`${DELETE_SCHEDULE_URL}?id=${scheduleId}`, {
+            method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.status === 204) {
+            showFormStatus("Jadwal berhasil dihapus!", false);
+            setTimeout(() => showFormStatus("", false), 4000);
+            allSchedules = allSchedules.filter(s => s.id !== scheduleId);
+            filterSchedules();
+        } else if (response.status === 404) {
+             showError(`Gagal menghapus: Jadwal dengan ID ${scheduleId} tidak ditemukan.`);
+             await fetchData();
+        } else {
+            let errorMsg = `Gagal menghapus: Status ${response.status}`;
+            try { const errorData = await response.json(); errorMsg = errorData.error || errorData.message || errorMsg; } catch(e) { /* Ignore */ }
+            throw new Error(errorMsg);
+        }
+    } catch (error) {
+        console.error(`Error deleting schedule ID ${scheduleId}:`, error);
+        showError(`Error menghapus jadwal: ${error.message}`);
+        showFormStatus("", false);
+    } finally {
+         if(deleteButton) { deleteButton.disabled = false; deleteButton.textContent = originalButtonText; }
+    }
+};
+
+const setupAdminFeatures = (user) => {
+    currentUser = user;
+    const isAdminSectionVisible = !!user;
+    if (adminElements.adminSection) { adminElements.adminSection.style.display = isAdminSectionVisible ? 'block' : 'none'; }
+    else { console.warn("Admin section element not found."); }
+    resetToAddMode();
+    filterSchedules();
+};
+
+const initNetlifyIdentity = () => {
+     if (adminElements.netlifyIdentityWidgetContainer) {
+        if (window.netlifyIdentity) {
+            window.netlifyIdentity.init({ container: '#netlifyIdentityWidget' });
+            window.netlifyIdentity.on('login', (user) => { window.netlifyIdentity.close(); setupAdminFeatures(user); });
+            window.netlifyIdentity.on('logout', () => { setupAdminFeatures(null); });
+            window.netlifyIdentity.on('error', (err) => { console.error('Identity Error:', err); showError(`Autentikasi error: ${err.message || 'Unknown'}`); });
+            setupAdminFeatures(window.netlifyIdentity.currentUser());
+        } else { console.error("Netlify Identity script not loaded."); showError("Gagal memuat komponen autentikasi."); }
+    } else { console.warn("Netlify Identity widget container (#netlifyIdentityWidget) not found."); }
+};
+
+const formatDate = (dateString) => {
+    if (!dateString) return 'Tanggal tidak valid';
+    const date = (dateString instanceof Date) ? dateString : new Date(dateString + 'T00:00:00Z');
+    if (isNaN(date.getTime())) return 'Tanggal tidak valid';
+    const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' };
+    return date.toLocaleDateString('id-ID', options);
+};
+
+const showLoading = () => { if(elements.loading) elements.loading.style.display = 'flex'; if(elements.scheduleGrid) elements.scheduleGrid.style.display = 'none'; hideEmptyState(); };
+const hideLoading = () => { if(elements.loading) elements.loading.style.display = 'none'; if(elements.scheduleGrid) elements.scheduleGrid.style.display = 'grid'; };
+const showEmptyState = (message = "Tidak ada jadwal yang ditemukan.") => { if(elements.emptyState) { elements.emptyState.style.display = 'flex'; elements.emptyState.innerHTML = `<i class="fas fa-ghost empty-icon"></i><h3>Oops! Kosong</h3><p>${message}</p>`; } if(elements.scheduleGrid) elements.scheduleGrid.style.display = 'none'; };
+const hideEmptyState = () => { if(elements.emptyState) elements.emptyState.style.display = 'none'; };
+const showError = (message = 'Terjadi kesalahan.') => { hideLoading(); if(elements.scheduleGrid) elements.scheduleGrid.style.display = 'none'; if(elements.emptyState) { elements.emptyState.style.display = 'flex'; elements.emptyState.innerHTML = `<i class="fas fa-exclamation-triangle empty-icon error-icon"></i><h3>Terjadi Kesalahan</h3><p>${message}</p>`; } };
+function debounce(func, wait) { let timeout; return function executedFunction(...args) { const later = () => { clearTimeout(timeout); func(...args); }; clearTimeout(timeout); timeout = setTimeout(later, wait); }; }
+
+const attachDynamicListeners = () => {
+    document.body.addEventListener('click', (e) => {
+        const target = e.target;
+        if (target.classList.contains('clickable') && target.dataset.entity) { handleEntityClick(target); }
+        if (target === elements.modalOverlay || target.closest('.close-modal')) { hideModal(); }
+        if (target.classList.contains('btn-edit')) { const scheduleId = target.dataset.id; setupEditForm(parseInt(scheduleId, 10)); }
+        if (target.classList.contains('btn-delete')) { const scheduleId = target.dataset.id; handleDeleteClick(scheduleId); }
+    });
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (!elements.scheduleGrid || !elements.loading || !elements.emptyState) { console.error("Initialization failed: Essential elements missing."); document.body.innerHTML = "<p style='color:red; padding: 20px;'>Error: Elemen dasar tidak ditemukan.</p>"; return; }
+    initTheme();
+    initNetlifyIdentity();
+    fetchData();
+    attachDynamicListeners();
+    elements.themeToggleBtn?.addEventListener('click', toggleTheme);
+    adminElements.scheduleForm?.addEventListener('submit', handleScheduleFormSubmit);
+    adminElements.cancelEditButton?.addEventListener('click', handleCancelEdit);
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && elements.modal?.style.display === 'block') { hideModal(); } });
+});
