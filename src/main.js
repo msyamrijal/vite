@@ -1,4 +1,4 @@
-// Tidak perlu import CSS
+// Tidak perlu import CSS jika tidak ada file CSS
 
 // ======================
 // KONFIGURASI & SELEKTOR DOM
@@ -10,7 +10,7 @@ const elements = {
     scheduleGrid: document.getElementById('scheduleGrid'),
     loading: document.getElementById('loading'),
     emptyState: document.getElementById('emptyState'),
-    errorState: document.getElementById('errorState') // Elemen untuk pesan error
+    errorState: document.getElementById('errorState')
 };
 
 // Variabel Global
@@ -20,12 +20,10 @@ let allSchedules = [];
 // UTILITIES
 // ======================
 const formatDate = (dateString) => {
-    // Fungsi format tanggal sederhana (bisa disesuaikan)
     if (!dateString) return 'Tanggal tidak valid';
     try {
-        const date = new Date(dateString + 'T00:00:00Z'); // Asumsi tanggal YYYY-MM-DD dari Supabase adalah UTC
+        const date = new Date(dateString + 'T00:00:00Z'); // Asumsi UTC
         if (isNaN(date.getTime())) return 'Tanggal tidak valid';
-        // Format sederhana: DD MMMM YYYY (misal: 05 Mei 2025)
         const options = { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' };
         return date.toLocaleDateString('id-ID', options);
     } catch (e) {
@@ -42,22 +40,22 @@ const showLoading = () => {
 
 const hideLoading = () => {
     if (elements.loading) elements.loading.style.display = 'none';
-    if (elements.scheduleGrid) elements.scheduleGrid.style.display = 'block'; // Tampilkan grid setelah loading
+    if (elements.scheduleGrid) elements.scheduleGrid.style.display = 'block';
 };
 
 const showEmptyState = () => {
-    hideLoading(); // Pastikan loading hilang
+    hideLoading();
     if (elements.emptyState) elements.emptyState.style.display = 'block';
-    if (elements.scheduleGrid) elements.scheduleGrid.innerHTML = ''; // Kosongkan grid
+    if (elements.scheduleGrid) elements.scheduleGrid.innerHTML = '';
 };
 
 const showError = (message) => {
-    hideLoading(); // Pastikan loading hilang
+    hideLoading();
     if (elements.errorState) {
         elements.errorState.textContent = `Error: ${message}`;
         elements.errorState.style.display = 'block';
     }
-    if (elements.scheduleGrid) elements.scheduleGrid.innerHTML = ''; // Kosongkan grid
+    if (elements.scheduleGrid) elements.scheduleGrid.innerHTML = '';
 };
 
 
@@ -73,7 +71,7 @@ const fetchData = async () => {
             try {
                 const errorData = await response.json();
                 errorMsg = errorData.error || errorData.message || errorMsg;
-            } catch (e) { /* Abaikan jika bukan JSON */ }
+            } catch (e) { /* Abaikan */ }
             throw new Error(errorMsg);
         }
 
@@ -83,7 +81,6 @@ const fetchData = async () => {
              throw new Error("Format data tidak valid.");
         }
 
-        // Filter hanya jadwal mendatang (opsional, bisa dilakukan di backend)
         const today = new Date(); today.setUTCHours(0, 0, 0, 0);
         allSchedules = data
             .filter(item => item && item.tanggal)
@@ -93,15 +90,15 @@ const fetchData = async () => {
                 TanggalDate: item.tanggal ? new Date(item.tanggal + 'T00:00:00Z') : null
              }))
             .filter(item => item.TanggalDate && !isNaN(item.TanggalDate.getTime()) && item.TanggalDate >= today)
-            .sort((a, b) => a.TanggalDate - b.TanggalDate); // Urutkan
+            .sort((a, b) => a.TanggalDate - b.TanggalDate);
 
-        renderSchedules(allSchedules); // Render data
+        renderSchedules(allSchedules);
 
     } catch (error) {
         console.error('Fetch Error:', error);
-        showError(error.message); // Tampilkan pesan error ke pengguna
+        showError(error.message);
         allSchedules = [];
-        renderSchedules([]); // Kosongkan tampilan
+        renderSchedules([]);
     } finally {
         hideLoading();
     }
@@ -112,24 +109,23 @@ const fetchData = async () => {
 // ======================
 const renderSchedules = (data) => {
     if (!elements.scheduleGrid) return;
-    elements.scheduleGrid.innerHTML = ''; // Kosongkan grid
+    elements.scheduleGrid.innerHTML = '';
 
     if (data.length === 0) {
-        showEmptyState(); // Tampilkan pesan kosong jika tidak ada data
+        showEmptyState();
         return;
     }
 
     const fragment = document.createDocumentFragment();
     data.forEach(item => {
         const scheduleElement = document.createElement('div');
-        scheduleElement.className = 'schedule-item'; // Class untuk border
+        scheduleElement.className = 'schedule-item'; // Class untuk border (dari HTML)
 
-        // Buat elemen HTML untuk setiap detail
         const titleElement = document.createElement('h2');
         titleElement.textContent = item.mata_pelajaran || 'Mata Pelajaran Tidak Ada';
 
         const institusiElement = document.createElement('p');
-        institusiElement.innerHTML = `<strong>Institusi:</strong> ${item.institusi || 'N/A'}`;
+        institusiElement.innerHTML = `<strong>Institusi:</strong> ${item.institusi || '-'}`; // Tampilkan '-' jika kosong
 
         const tanggalElement = document.createElement('p');
         tanggalElement.innerHTML = `<strong>Tanggal:</strong> ${formatDate(item.tanggal)}`;
@@ -137,27 +133,31 @@ const renderSchedules = (data) => {
         const pesertaContainer = document.createElement('div');
         pesertaContainer.innerHTML = '<strong>Peserta:</strong>';
 
-        const pesertaList = document.createElement('ul');
+        // Hanya tambahkan list jika peserta adalah array dan punya isi
         if (Array.isArray(item.peserta) && item.peserta.length > 0) {
+            const pesertaList = document.createElement('ul');
+            let validPesertaCount = 0; // Hitung nama peserta yang valid
             item.peserta.forEach(nama => {
-                const li = document.createElement('li');
-                li.textContent = typeof nama === 'string' ? nama.trim() : 'Data Peserta Salah';
-                if (li.textContent) { // Hanya tambahkan jika nama tidak kosong
+                const namaTrimmed = typeof nama === 'string' ? nama.trim() : '';
+                if (namaTrimmed) { // Hanya tambahkan jika nama tidak kosong
+                    const li = document.createElement('li');
+                    li.textContent = namaTrimmed;
                     pesertaList.appendChild(li);
+                    validPesertaCount++;
                 }
             });
-            // Jika setelah filter tidak ada nama valid, tampilkan N/A
-            if (pesertaList.childElementCount === 0) {
-                 pesertaContainer.innerHTML += ' N/A';
+            // Hanya tampilkan <ul> jika ada setidaknya satu nama valid
+            if (validPesertaCount > 0) {
+                pesertaContainer.appendChild(pesertaList);
             } else {
-                 pesertaContainer.appendChild(pesertaList);
+                // Jika semua nama kosong/invalid, tampilkan tanda strip
+                 pesertaContainer.innerHTML += ' -';
             }
         } else {
-            // Tampilkan N/A jika peserta bukan array atau array kosong
-            pesertaContainer.innerHTML += ' N/A';
+            // Jika peserta bukan array atau array kosong, tampilkan tanda strip
+            pesertaContainer.innerHTML += ' -';
         }
 
-        // Masukkan semua elemen ke dalam div utama jadwal
         scheduleElement.appendChild(titleElement);
         scheduleElement.appendChild(institusiElement);
         scheduleElement.appendChild(tanggalElement);
@@ -166,18 +166,17 @@ const renderSchedules = (data) => {
         fragment.appendChild(scheduleElement);
     });
 
-    elements.scheduleGrid.appendChild(fragment); // Tampilkan semua jadwal
+    elements.scheduleGrid.appendChild(fragment);
 };
 
 // ======================
 // INISIALISASI UTAMA APLIKASI
 // ======================
 document.addEventListener('DOMContentLoaded', () => {
-    // Pastikan elemen dasar ada
     if (!elements.scheduleGrid || !elements.loading || !elements.emptyState || !elements.errorState) {
         console.error("Initialization failed: Essential elements missing.");
         document.body.innerHTML = "<p style='color:red; padding: 20px;'>Error: Elemen dasar tidak ditemukan.</p>";
         return;
     }
-    fetchData(); // Langsung ambil data saat halaman siap
+    fetchData(); // Langsung ambil data
 });
