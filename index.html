@@ -1,117 +1,92 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jadwal Kegiatan Interaktif</title>
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <!-- Fonts -->
+    <title>Jadwal Kuliah Interaktif</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Icons (Font Awesome) -->
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <!-- Main Stylesheet -->
-    <link rel="stylesheet" href="/src/styles.css">
-    <!-- Netlify Identity Widget -->
+
     <script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+
+    <link rel="stylesheet" href="styles.css">
+
 </head>
 <body>
-    <div id="app">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-top container">
-                <div class="brand">
-                    <i class="fas fa-calendar-alt brand-icon"></i>
-                    <h1 class="brand-title">Jadwal Kegiatan</h1>
-                </div>
-                <!-- Tombol Ganti Tema -->
-                <button id="themeToggle" class="theme-toggle" aria-label="Toggle Light/Dark Theme">
-                    <span class="theme-icon"></span>
-                </button>
+    <header class="header">
+        <div class="header-top container">
+            <div class="brand">
+                <i class="fas fa-calendar-alt brand-icon"></i>
+                <h1 class="brand-title">Jadwal Kuliah</h1>
             </div>
-            <!-- Filter & Search -->
-            <div class="header-filters container">
-                <div class="search-filter">
-                    <div class="search-container">
-                        <i class="fas fa-search search-icon"></i>
-                        <input type="text" id="searchInput" class="search-input" placeholder="Cari institusi, mapel, peserta...">
-                    </div>
-                    <select id="institutionFilter" class="institution-filter">
-                        <option value="all">Semua Institusi</option>
-                        <!-- Opsi institusi akan ditambahkan oleh JavaScript -->
-                    </select>
+            <div class="search-filter">
+                <div class="search-container">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="searchInput" class="search-input" placeholder="Cari mata kuliah, peserta...">
                 </div>
+                <select id="institutionFilter" class="institution-filter">
+                    <option value="all">Semua Institusi</option>
+                </select>
             </div>
-        </header>
+            <button id="themeToggle" class="theme-toggle" aria-label="Toggle Light/Dark Theme">
+                <span class="theme-icon"></span>
+            </button>
+        </div>
+    </header>
 
-        <!-- Konten Utama -->
-        <main class="main-content container">
+    <main class="main-content container">
+        <div class="loading" id="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Memuat Jadwal...</p>
+        </div>
+        <section id="scheduleGrid" class="schedule-grid" aria-live="polite"></section>
+        <div class="empty-state" id="emptyState" style="display: none;"></div>
 
-            <!-- Bagian Admin (Login & Form Tambah) -->
-            <section id="adminSection" class="admin-section" style="display: none;"> <!-- Awalnya disembunyikan -->
-                <h2>Area Admin</h2>
-                <!-- Container untuk Netlify Identity Widget -->
-                <div id="netlifyIdentityWidget"></div>
+        <section class="admin-section container" id="adminSection" style="display: none;">
+            <h2>Admin Panel</h2>
+            <div id="netlifyIdentityWidget"></div>
 
-                <!-- Form Tambah Jadwal (di dalam admin section) -->
-                <form id="addScheduleForm" class="add-schedule-form card" style="display: none;"> <!-- Awalnya disembunyikan -->
-                     <h3>Tambah Jadwal Baru</h3>
-                    <div class="form-group">
-                        <label for="addInstitusi">Institusi:</label>
-                        <input type="text" id="addInstitusi" name="institusi" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="addMataPelajaran">Mata Pelajaran:</label>
-                        <input type="text" id="addMataPelajaran" name="mata_pelajaran" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="addTanggal">Tanggal:</label>
-                        <input type="date" id="addTanggal" name="tanggal" required pattern="\d{4}-\d{2}-\d{2}">
-                    </div>
-                    <div class="form-group">
-                        <label for="addPeserta">Peserta (pisahkan dengan koma):</label>
-                        <input type="text" id="addPeserta" name="peserta" required placeholder="Contoh: Budi, Ani, Candra">
-                        <small>Pisahkan setiap nama peserta dengan koma.</small>
-                    </div>
-                    <button type="submit" id="addScheduleSubmitBtn" class="button primary-button">Tambah Jadwal</button>
-                    <p id="addFormStatus" class="form-status" aria-live="polite" style="display: none;"></p>
-                </form>
-            </section>
+            <form id="scheduleForm" class="schedule-form" style="margin-top: 2rem;">
+                <h3 id="formTitle" class="form-title">Tambah Jadwal Baru</h3>
+                <input type="hidden" id="scheduleId" name="scheduleId">
 
-            <!-- Tampilan Jadwal -->
-            <section id="scheduleDisplay" class="schedule-display">
-                <h2>Jadwal Mendatang</h2>
-                <!-- Indikator Loading -->
-                <div class="loading-indicator" id="loading" style="display: none;">
-                    <div class="spinner"></div>
-                    <p>Memuat Jadwal...</p>
+                <div class="form-group">
+                    <label for="formInstitusi">Institusi:</label>
+                    <input type="text" id="formInstitusi" name="institusi" required>
                 </div>
-                <!-- Grid Jadwal -->
-                <div id="scheduleGrid" class="schedule-grid" aria-live="polite">
-                    <!-- Kartu jadwal akan dimasukkan di sini oleh JavaScript -->
+                <div class="form-group">
+                    <label for="formMataPelajaran">Mata Pelajaran:</label>
+                    <input type="text" id="formMataPelajaran" name="mata_pelajaran" required>
                 </div>
-                <!-- Status Kosong -->
-                <div class="empty-state" id="emptyState" style="display: none;">
-                    <!-- Konten status kosong akan dimasukkan oleh JavaScript -->
+                <div class="form-group">
+                    <label for="formTanggal">Tanggal (YYYY-MM-DD):</label>
+                    <input type="date" id="formTanggal" name="tanggal" required>
                 </div>
-            </section>
-
+                <div class="form-group">
+                    <label for="formPeserta">Peserta (pisahkan nama dengan koma):</label>
+                    <input type="text" id="formPeserta" name="peserta" placeholder="Contoh: Budi, Ani, Caca" required>
+                </div>
+                <button type="submit" class="btn-submit" id="scheduleSubmitBtn">Tambah Jadwal</button>
+                <button type="button" class="btn-cancel-edit" id="cancelEditBtn" style="display: none;">Batal Edit</button>
+                <p id="formStatus" class="form-status"></p>
+            </form>
+        </section>
         </main>
 
-        <!-- Modal Detail -->
-        <div class="modal" id="genericModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" style="display: none;">
-            <div class="modal-overlay"></div>
-            <div class="modal-content">
-                <button class="close-modal" aria-label="Close modal">&times;</button>
-                <h3 id="modalTitle" class="modal-title">Detail Jadwal</h3>
-                <div class="modal-body" id="modalBody">
-                    <!-- Konten modal akan dimasukkan di sini oleh JavaScript -->
-                </div>
-            </div>
+    <div class="modal" id="genericModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" style="display: none;">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <button class="close-modal" aria-label="Close modal">&times;</button>
+            <h3 id="modalTitle" class="modal-title">Detail Jadwal</h3>
+            <div class="modal-body" id="modalBody"></div>
         </div>
+    </div>
 
-    </div> <!-- Akhir div #app -->
-
-    <!-- Main JavaScript -->
-    <script type="module" src="/src/main.js"></script>
+    <script type="module" src="/main.js"></script>
 </body>
 </html>
+
