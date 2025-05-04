@@ -62,10 +62,10 @@ const fetchData = async () => {
         allSchedules = data
             .filter(item => {
                 // Basic validation: Ensure essential fields exist and date is valid
-                return item.Tanggal && item.Institusi && item.Mata_Pelajaran && item.Peserta && !isNaN(new Date(item.Tanggal).getTime());
+                return item.tanggal && item.institusi && item.mata_pelajaran && item.peserta && Array.isArray(item.peserta) && !isNaN(new Date(item.tanggal).getTime());
             })
-            .map(item => ({ ...item, TanggalDate: new Date(item.Tanggal) })) // Pre-convert date for sorting/filtering
-            .filter(item => item.TanggalDate >= today)
+            .map(item => ({ ...item, TanggalDate: new Date(item.tanggal) })) // Pre-convert date for sorting/filtering
+            .filter(item => item.TanggalDate >= today) // Use the pre-converted date
             .sort((a, b) => a.TanggalDate - b.TanggalDate);
 
         initFilters();
@@ -86,7 +86,7 @@ const fetchData = async () => {
 // ======================
 const initFilters = () => {
     // Use a Set for unique institutions and sort them alphabetically
-    const institutions = [...new Set(allSchedules.map(item => item.Institusi))].sort((a, b) => a.localeCompare(b));
+    const institutions = [...new Set(allSchedules.map(item => item.institusi))].sort((a, b) => a.localeCompare(b));
     const filterSelect = elements.institutionFilter;
 
     // Clear existing options (except the default "Semua Institusi")
@@ -115,14 +115,14 @@ const filterSchedules = () => {
     const filtered = allSchedules.filter(item => {
         // Combine relevant fields into a single string for searching
         const searchableText = [
-            item.Institusi,
-            item.Mata_Pelajaran,
-            item.Peserta.join(' ')
+            item.institusi,
+            item.mata_pelajaran,
+            Array.isArray(item.peserta) ? item.peserta.join(' ') : '' // Ensure peserta is an array
             // Optionally add formatted date if needed for search
         ].join(' ').toLowerCase();
 
         const matchesSearch = searchTerm === '' || searchableText.includes(searchTerm);
-        const matchesInstitution = selectedInstitution === 'all' || item.Institusi === selectedInstitution;
+        const matchesInstitution = selectedInstitution === 'all' || item.institusi === selectedInstitution;
 
         return matchesSearch && matchesInstitution;
     });
@@ -158,12 +158,12 @@ const createScheduleCard = (item) => {
     card.className = 'schedule-card';
     card.innerHTML = `
         <div class="card-header">
-            <h3 class="course-title clickable" data-entity="Mata_Pelajaran">${item.Mata_Pelajaran}</h3>
-            <span class="date-display clickable" data-entity="Tanggal">${formatDate(item.Tanggal)}</span>
+            <h3 class="course-title clickable" data-entity="mata_pelajaran">${item.mata_pelajaran}</h3>
+            <span class="date-display clickable" data-entity="tanggal">${formatDate(item.tanggal)}</span>
         </div>
-        <div class="institute clickable" data-entity="Institusi">${item.Institusi}</div>
+        <div class="institute clickable" data-entity="institusi">${item.institusi}</div>
         <div class="participants">
-            ${item.Peserta.map(peserta => `
+            ${Array.isArray(item.peserta) ? item.peserta.map(peserta => `
                 <span class="participant-tag clickable" data-entity="Peserta">${peserta}</span>
             `).join('')}
         </div>
@@ -195,14 +195,14 @@ const generateModalContent = (data) => {
     return data.map(item => `
         <div class="modal-item">
             <div class="card-header">
-                <h4 class="course-title">${item.Mata_Pelajaran}</h4>
+                <h4 class="course-title">${item.mata_pelajaran}</h4>
             </div>
              <div class="modal-meta">
-                <span class="institute">${item.Institusi}</span>
-                <span class="date-display">${formatDate(item.Tanggal)}</span>
+                <span class="institute">${item.institusi}</span>
+                <span class="date-display">${formatDate(item.tanggal)}</span>
             </div>
             <div class="participants">
-                ${item.Peserta.map(p => `<span class="participant-tag">${p}</span>`).join('')}
+                ${Array.isArray(item.peserta) ? item.peserta.map(p => `<span class="participant-tag">${p}</span>`).join('') : ''}
             </div>
         </div>
     `).join('');
@@ -219,16 +219,16 @@ const handleEntityClick = (element) => {
 
     // Prepare data based on clicked entity
     let filteredData;
-    if (entityType === 'Peserta') {
-        filteredData = allSchedules.filter(item => item.Peserta.includes(value));
+    if (entityType === 'peserta') { // Note: data-entity in HTML was 'Peserta', adjust if needed or keep logic flexible
+        filteredData = allSchedules.filter(item => Array.isArray(item.peserta) && item.peserta.includes(value));
         modalTitlePrefix = `Jadwal untuk ${value}`;
-    } else if (entityType === 'Tanggal') {
+    } else if (entityType === 'tanggal') {
         // Match by formatted date string if needed, or re-filter by date object
          const clickedDateStr = formatDate(value); // Assuming value is a parseable date string initially
-         filteredData = allSchedules.filter(item => formatDate(item.Tanggal) === clickedDateStr);
+         filteredData = allSchedules.filter(item => formatDate(item.tanggal) === clickedDateStr);
          modalTitlePrefix = `Jadwal pada ${value}`;
     }
-     else { // Mata_Pelajaran or Institusi
+     else { // mata_pelajaran or institusi
         filteredData = allSchedules.filter(item => item[filterProperty] === value);
         modalTitlePrefix = `Jadwal ${value}`;
     }
